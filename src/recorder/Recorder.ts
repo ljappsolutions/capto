@@ -7,6 +7,7 @@ import {
   TARGET_FPS,
   VIDEO_BITRATE
 } from '@shared/constants'
+import { getOutputLimits } from '@shared/videoQuality'
 import type { AppError, RecordingMetadata, RecordingOptions, RecordingState } from '@shared/types'
 import { AudioMixer } from './AudioMixer'
 import { getCameraStream, getMicrophoneStream, stopStream } from './MediaDevices'
@@ -59,6 +60,8 @@ export class Recorder {
   }
   private width = 0
   private height = 0
+  private videoBitrate = VIDEO_BITRATE
+  private ffmpegCrf = 22
 
   on<K extends keyof RecorderEventMap>(event: K, listener: RecorderListener<K>): () => void {
     this.listeners[event].add(listener)
@@ -180,22 +183,22 @@ export class Recorder {
         micVolume: options.micVolume
       })
 
-      const settings = await window.recorderAPI.getSettings()
-      const maxWidth = settings.videoQuality === '720p' ? 1280 : 1920
-      const maxHeight = settings.videoQuality === '720p' ? 720 : 1080
+      const limits = getOutputLimits(options.videoQuality)
 
       this.composedVideo = await this.compositor.prepare({
         desktopStream: this.desktopStream,
         cameraStream: this.cameraStream,
         cameraEnabled: this.cameraEnabled,
         cameraPosition: options.cameraPosition,
-        maxWidth,
-        maxHeight
+        maxWidth: limits.width,
+        maxHeight: limits.height
       })
 
       const size = this.compositor.getSize()
       this.width = size.width
       this.height = size.height
+      this.videoBitrate = limits.videoBitrate
+      this.ffmpegCrf = limits.ffmpegCrf
 
       this.recordStream = new MediaStream()
       for (const track of this.composedVideo.getVideoTracks()) {
@@ -217,7 +220,9 @@ export class Recorder {
         systemAudioEnabled: options.systemAudioEnabled,
         width: this.width,
         height: this.height,
-        fps: TARGET_FPS
+        fps: TARGET_FPS,
+        videoBitrate: this.videoBitrate,
+        ffmpegCrf: this.ffmpegCrf
       })
 
       this.setState('ready')
@@ -275,7 +280,7 @@ export class Recorder {
 
     this.mediaRecorder = new MediaRecorder(this.recordStream, {
       mimeType: this.mimeType,
-      videoBitsPerSecond: VIDEO_BITRATE,
+      videoBitsPerSecond: this.videoBitrate,
       audioBitsPerSecond: AUDIO_BITRATE
     })
 
@@ -360,16 +365,30 @@ export class Recorder {
     // Allow final dataavailable handlers to flush
     await new Promise((r) => setTimeout(r, 100))
 
-    const metadata = await window.recorderAPI.finalizeRecording({
-      id: this.recordingId!,
-      durationMs: elapsed
-    })
+    await window.recorderAPI.hideWindow('controls')
+    await window.recorderAPI.hideWindow('countdown')
+    await window.recorderAPI.showWindow('exporting')
 
-    await this.disposeInternal(false)
-    this.setState('completed')
-    this.emit('completed', { metadata })
-    await window.recorderAPI.notifyRecordingStopped(metadata.id)
-    return metadata
+    try {
+      const metadata = await window.recorderAPI.finalizeRecording({
+        id: this.recordingId!,
+        durationMs: elapsed
+      })
+
+      await this.disposeInternal(false)
+      this.setState('completed')
+      this.emit('completed', { metadata })
+      await window.recorderAPI.notifyRecordingStopped(metadata.id)
+      return metadata
+    } catch (error) {
+      await window.recorderAPI.hideWindow('exporting')
+      await window.recorderAPI.unparkRecordingHost()
+      await window.recorderAPI.showWindow('picker')
+      const message =
+        error instanceof Error ? error.message : 'Failed to export the recording.'
+      this.fail(this.appError('UNKNOWN', message))
+      throw error
+    }
   }
 
   setMicrophoneEnabled(enabled: boolean): void {

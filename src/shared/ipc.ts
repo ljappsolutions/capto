@@ -4,6 +4,7 @@ import type {
   AppendChunkPayload,
   CaptureSource,
   CreateRecordingPayload,
+  ExportProgressEvent,
   FinalizeRecordingPayload,
   PermissionState,
   RecordingListItem,
@@ -41,7 +42,8 @@ export const IpcChannels = {
   notifyRecordingStopped: 'capto:notify-recording-stopped',
   getPartialRecoveries: 'capto:get-partial-recoveries',
   recorderCommand: 'capto:recorder-command',
-  recorderEvent: 'capto:recorder-event'
+  recorderEvent: 'capto:recorder-event',
+  exportProgress: 'capto:export-progress'
 } as const
 
 export type RecorderCommand =
@@ -62,6 +64,8 @@ export type RecorderBridgeEvent =
     }
   | { type: 'state'; state: import('./types').RecordingState }
   | { type: 'error'; message: string }
+
+export type { ExportProgressEvent }
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
@@ -104,4 +108,5 @@ export interface RecorderAPI {
   onRecorderCommand: (listener: (command: RecorderCommand) => void) => () => void
   onRecorderEvent: (listener: (event: RecorderBridgeEvent) => void) => () => void
   publishRecorderEvent: (event: RecorderBridgeEvent) => Promise<void>
+  onExportProgress: (listener: (event: ExportProgressEvent) => void) => () => void
 }

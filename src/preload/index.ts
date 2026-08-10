@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   IpcChannels,
+  type ExportProgressEvent,
   type RecorderAPI,
   type RecorderBridgeEvent,
   type RecorderCommand
@@ -60,7 +61,16 @@ const api: RecorderAPI = {
     }
   },
   publishRecorderEvent: (event: RecorderBridgeEvent) =>
-    ipcRenderer.invoke(IpcChannels.recorderEvent, event)
+    ipcRenderer.invoke(IpcChannels.recorderEvent, event),
+  onExportProgress: (listener: (event: ExportProgressEvent) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: ExportProgressEvent): void => {
+      listener(payload)
+    }
+    ipcRenderer.on(IpcChannels.exportProgress, handler)
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.exportProgress, handler)
+    }
+  }
 }
 
 contextBridge.exposeInMainWorld('recorderAPI', api)

@@ -225,6 +225,41 @@ export function showCountdownWindow(): BrowserWindow {
   })
 }
 
+export function showExportingWindow(): BrowserWindow {
+  const display = screen.getPrimaryDisplay()
+  const width = 420
+  const height = 180
+  const x = Math.round(display.workArea.x + (display.workArea.width - width) / 2)
+  const y = Math.round(display.workArea.y + (display.workArea.height - height) / 2)
+
+  return createWindow('exporting', {
+    width,
+    height,
+    x,
+    y,
+    resizable: false,
+    fullscreenable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    title: 'Exporting Recording'
+  })
+}
+
+export async function showExportingWindowReady(): Promise<BrowserWindow> {
+  const win = showExportingWindow()
+  if (!win.webContents.isLoadingMainFrame()) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 50))
+    return win
+  }
+  await new Promise<void>((resolve) => {
+    win.webContents.once('did-finish-load', () => resolve())
+  })
+  // Let React mount and subscribe to export progress.
+  await new Promise<void>((resolve) => setTimeout(resolve, 50))
+  return win
+}
+
 export function showWindow(kind: WindowKind, query?: Record<string, string>): BrowserWindow {
   switch (kind) {
     case 'picker':
@@ -239,6 +274,8 @@ export function showWindow(kind: WindowKind, query?: Record<string, string>): Br
       return showControlsWindow()
     case 'countdown':
       return showCountdownWindow()
+    case 'exporting':
+      return showExportingWindow()
     default: {
       const _exhaustive: never = kind
       throw new Error(`Unknown window kind: ${_exhaustive}`)

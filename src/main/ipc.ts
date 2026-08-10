@@ -29,7 +29,8 @@ import {
   getRecordingFileUrl,
   listRecordings,
   renameRecording,
-  revealRecording
+  revealRecording,
+  setExportProgressListener
 } from './recordings'
 import {
   getLaunchAtLoginEffective,
@@ -45,6 +46,7 @@ import {
   hideWindow,
   parkRecordingHost,
   showCompleteWindow,
+  showExportingWindowReady,
   showWindow,
   unparkRecordingHost
 } from './windows'
@@ -56,6 +58,10 @@ export function registerIpcHandlers(): void {
   registered = true
 
   installDisplayMediaHandler()
+
+  setExportProgressListener((event) => {
+    broadcastToWindow('exporting', IpcChannels.exportProgress, event)
+  })
 
   ipcMain.handle(IpcChannels.getCaptureSources, async () => getCaptureSources())
 
@@ -145,6 +151,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(
     IpcChannels.showWindow,
     async (_e, kind: WindowKind, query?: Record<string, string>) => {
+      if (kind === 'exporting') {
+        await showExportingWindowReady()
+        return
+      }
       showWindow(kind, query)
     }
   )
@@ -171,6 +181,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.notifyRecordingStopped, async (_e, recordingId: string) => {
     closeWindow('controls')
     closeWindow('countdown')
+    closeWindow('exporting')
     hideWindow('picker')
     showCompleteWindow(recordingId)
   })

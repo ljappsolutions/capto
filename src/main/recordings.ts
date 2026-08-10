@@ -30,6 +30,7 @@ import { parseMetadata } from '@shared/metadata'
 import type {
   AppendChunkPayload,
   CreateRecordingPayload,
+  ExportProgressEvent,
   FinalizeRecordingPayload,
   RecordingListItem,
   RecordingMetadata,
@@ -175,6 +176,18 @@ export async function appendRecordingChunk(payload: AppendChunkPayload): Promise
   }
 }
 
+export type ExportProgressListener = (event: ExportProgressEvent) => void
+
+let exportProgressListener: ExportProgressListener | null = null
+
+export function setExportProgressListener(listener: ExportProgressListener | null): void {
+  exportProgressListener = listener
+}
+
+function emitExportProgress(event: ExportProgressEvent): void {
+  exportProgressListener?.(event)
+}
+
 export async function finalizeRecording(
   payload: FinalizeRecordingPayload
 ): Promise<RecordingMetadata> {
@@ -182,6 +195,12 @@ export async function finalizeRecording(
   if (!session) {
     throw new Error('Unknown recording session')
   }
+
+  emitExportProgress({
+    phase: 'finalizing',
+    progress: 0.02,
+    message: 'Finalizing recording…'
+  })
 
   flushPending(session)
 
@@ -195,10 +214,28 @@ export async function finalizeRecording(
   const webmPath = session.partialPath.replace(PARTIAL_EXTENSION, INTERMEDIATE_EXTENSION)
   renameSync(session.partialPath, webmPath)
 
+  emitExportProgress({
+    phase: 'finalizing',
+    progress: 0.05,
+    message: 'Preparing export…'
+  })
+
   const mp4Path = webmPath.replace(/\.webm$/i, FINAL_EXTENSION)
 
   try {
-    await convertWebmToMp4(webmPath, mp4Path)
+    await convertWebmToMp4(webmPath, mp4Path, {
+      crf: session.payload.ffmpegCrf,
+      audioBitrateKbps: 160,
+      durationMs: payload.durationMs,
+      onProgress: (ratio) => {
+        const progress = 0.05 + ratio * 0.9
+        emitExportProgress({
+          phase: 'converting',
+          progress,
+          message: 'Creating MP4…'
+        })
+      }
+    })
     try {
       await fs.unlink(webmPath)
     } catch {
@@ -216,6 +253,12 @@ export async function finalizeRecording(
         : 'Failed to create MP4'
     )
   }
+
+  emitExportProgress({
+    phase: 'saving',
+    progress: 0.97,
+    message: 'Saving recording…'
+  })
 
   const stats = statSync(mp4Path)
   const filename = basename(mp4Path)
@@ -241,6 +284,11 @@ export async function finalizeRecording(
 
   writeMeta(metadata)
   active.delete(payload.id)
+  emitExportProgress({
+    phase: 'saving',
+    progress: 1,
+    message: 'Done'
+  })
   log.info('Recording finalized', { id: metadata.id, path: mp4Path, sizeBytes: stats.size })
   return metadata
 }

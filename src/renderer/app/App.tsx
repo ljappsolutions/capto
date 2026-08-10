@@ -2,6 +2,7 @@ import type { WindowKind } from '@shared/types'
 import { CompleteScreen } from '../screens/CompleteScreen'
 import { ControlsScreen } from '../screens/ControlsScreen'
 import { CountdownScreen } from '../screens/CountdownScreen'
+import { ExportingScreen } from '../screens/ExportingScreen'
 import { PickerScreen } from '../screens/PickerScreen'
 import { RecordingsScreen } from '../screens/RecordingsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
@@ -15,7 +16,8 @@ function getWindowKind(): WindowKind {
     kind === 'complete' ||
     kind === 'recordings' ||
     kind === 'settings' ||
-    kind === 'countdown'
+    kind === 'countdown' ||
+    kind === 'exporting'
   ) {
     return kind
   }
@@ -38,6 +40,8 @@ export function App() {
       return <ControlsScreen />
     case 'countdown':
       return <CountdownScreen />
+    case 'exporting':
+      return <ExportingScreen />
     default:
       return <PickerScreen />
   }

@@ -1,5 +1,6 @@
 import { DEFAULT_GLOBAL_SHORTCUT } from './constants'
 import type { AppSettings } from './types'
+import { isVideoQuality } from './videoQuality'
 
 export const DEFAULT_SETTINGS: AppSettings = {
   launchAtLogin: true,
@@ -58,10 +59,9 @@ export function parseSettings(raw: unknown): AppSettings {
       raw.cameraPosition === 'bottom-right'
         ? raw.cameraPosition
         : DEFAULT_SETTINGS.cameraPosition,
-    videoQuality:
-      raw.videoQuality === '720p' || raw.videoQuality === '1080p'
-        ? raw.videoQuality
-        : DEFAULT_SETTINGS.videoQuality,
+    videoQuality: isVideoQuality(raw.videoQuality)
+      ? raw.videoQuality
+      : DEFAULT_SETTINGS.videoQuality,
     systemVolume:
       typeof raw.systemVolume === 'number' && Number.isFinite(raw.systemVolume)
         ? Math.min(2, Math.max(0, raw.systemVolume))

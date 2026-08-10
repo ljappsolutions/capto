@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { VideoQuality } from '@shared/types'
 import { CameraPreview } from '../components/CameraPreview'
 import { PermissionRow } from '../components/PermissionRow'
 import { SourceCard } from '../components/SourceCard'
@@ -27,6 +28,7 @@ export function PickerScreen() {
   const [cameraEnabled, setCameraEnabled] = useState(false)
   const [systemAudioEnabled, setSystemAudioEnabled] = useState(true)
   const [microphoneEnabled, setMicrophoneEnabled] = useState(true)
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>('1080p')
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -36,6 +38,7 @@ export function PickerScreen() {
     setCameraId(settings.defaultCameraId)
     setCameraEnabled(settings.defaultCameraEnabled)
     setSystemAudioEnabled(settings.defaultSystemAudioEnabled)
+    setVideoQuality(settings.videoQuality)
   }, [settings])
 
   const list = tab === 'screens' ? grouped.screens : grouped.windows
@@ -61,7 +64,8 @@ export function PickerScreen() {
         defaultMicrophoneId: microphoneId,
         defaultCameraId: cameraId,
         defaultCameraEnabled: cameraEnabled,
-        defaultSystemAudioEnabled: systemAudioEnabled
+        defaultSystemAudioEnabled: systemAudioEnabled,
+        videoQuality
       })
 
       await prepare({
@@ -75,7 +79,8 @@ export function PickerScreen() {
         systemAudioEnabled,
         cameraPosition: settings.cameraPosition,
         systemVolume: settings.systemVolume,
-        micVolume: settings.micVolume
+        micVolume: settings.micVolume,
+        videoQuality
       })
       await start()
     } catch (err) {
@@ -193,6 +198,19 @@ export function PickerScreen() {
               />
               Include computer audio
             </label>
+          </div>
+
+          <div className="field">
+            <label htmlFor="quality">Video quality</label>
+            <select
+              id="quality"
+              value={videoQuality}
+              onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
+            >
+              <option value="1440p">1440p (2K) — best for YouTube</option>
+              <option value="1080p">1080p — good default</option>
+              <option value="720p">720p — smaller files</option>
+            </select>
           </div>
 
           <CameraPreview deviceId={cameraId} enabled={cameraEnabled} />

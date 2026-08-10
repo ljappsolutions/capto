@@ -12,13 +12,13 @@ describe('parseSettings', () => {
   it('merges valid partial values', () => {
     const settings = parseSettings({
       launchAtLogin: false,
-      videoQuality: '720p',
+      videoQuality: '1440p',
       micVolume: 0.5,
       cameraPosition: 'top-left',
       junk: true
     })
     expect(settings.launchAtLogin).toBe(false)
-    expect(settings.videoQuality).toBe('720p')
+    expect(settings.videoQuality).toBe('1440p')
     expect(settings.micVolume).toBe(0.5)
     expect(settings.cameraPosition).toBe('top-left')
   })

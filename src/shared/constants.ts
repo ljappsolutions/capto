@@ -12,11 +12,13 @@ export const MEDIA_RECORDER_TIMESLICE_MS = 1000
 
 export const TARGET_FPS = 30
 
+/** Default max output when settings are unavailable (1080p). */
 export const MAX_OUTPUT_WIDTH = 1920
 export const MAX_OUTPUT_HEIGHT = 1080
 
-export const VIDEO_BITRATE = 4_000_000
-export const AUDIO_BITRATE = 128_000
+/** Fallback bitrate; prefer getOutputLimits(quality).videoBitrate. */
+export const VIDEO_BITRATE = 5_000_000
+export const AUDIO_BITRATE = 160_000
 
 export const MIME_CANDIDATES = [
   'video/webm;codecs=vp9,opus',

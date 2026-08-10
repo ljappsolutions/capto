@@ -22,7 +22,7 @@ export interface PermissionState {
 
 export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
-export type VideoQuality = '720p' | '1080p'
+export type VideoQuality = '720p' | '1080p' | '1440p'
 
 export interface AppSettings {
   launchAtLogin: boolean
@@ -66,6 +66,7 @@ export interface RecordingOptions {
   cameraPosition: CameraPosition
   systemVolume: number
   micVolume: number
+  videoQuality: VideoQuality
 }
 
 export interface RecordingMetadata {
@@ -104,7 +105,23 @@ export interface VideoDevice {
   kind: 'videoinput'
 }
 
-export type WindowKind = 'picker' | 'controls' | 'complete' | 'recordings' | 'settings' | 'countdown'
+export type WindowKind =
+  | 'picker'
+  | 'controls'
+  | 'complete'
+  | 'recordings'
+  | 'settings'
+  | 'countdown'
+  | 'exporting'
+
+export type ExportPhase = 'finalizing' | 'converting' | 'saving'
+
+export interface ExportProgressEvent {
+  phase: ExportPhase
+  /** 0–1 overall export progress */
+  progress: number
+  message: string
+}
 
 export interface CreateRecordingPayload {
   id: string
@@ -117,6 +134,8 @@ export interface CreateRecordingPayload {
   width: number
   height: number
   fps: number
+  videoBitrate: number
+  ffmpegCrf: number
 }
 
 export interface AppendChunkPayload {

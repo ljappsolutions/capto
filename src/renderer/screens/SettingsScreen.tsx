@@ -76,8 +76,9 @@ export function SettingsScreen() {
             value={settings.videoQuality}
             onChange={(e) => void update({ videoQuality: e.target.value as VideoQuality })}
           >
-            <option value="1080p">1080p max</option>
-            <option value="720p">720p max</option>
+            <option value="1440p">1440p (2K) — best for YouTube</option>
+            <option value="1080p">1080p — good default</option>
+            <option value="720p">720p — smaller files</option>
           </select>
         </div>
 
