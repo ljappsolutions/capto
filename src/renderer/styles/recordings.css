@@ -1,0 +1,57 @@
+.recordings {
+  padding: 16px;
+  gap: 12px;
+}
+
+.recordings__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.recordings__header h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.recordings__header p {
+  margin: 0;
+}
+
+.recordings__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.recording-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.recording-item h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  word-break: break-all;
+}
+
+.recording-item p {
+  margin: 0 0 2px;
+}
+
+.badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--warning);
+  color: #1a1200;
+  border-radius: 999px;
+  padding: 2px 6px;
+}

@@ -1,0 +1,152 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7;
+  --bg-elevated: #ffffff;
+  --bg-muted: #e8eaee;
+  --text: #14161a;
+  --text-secondary: #5b616b;
+  --border: #d5d9e0;
+  --accent: #0b6bcb;
+  --accent-text: #ffffff;
+  --danger: #c62828;
+  --success: #1b7f4a;
+  --warning: #9a6700;
+  --shadow: 0 8px 28px rgba(20, 22, 26, 0.12);
+  --radius: 10px;
+  --font: "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1e22;
+    --bg-elevated: #262a31;
+    --bg-muted: #323844;
+    --text: #f2f4f7;
+    --text-secondary: #a7afbb;
+    --border: #3a4150;
+    --accent: #4ea1ff;
+    --accent-text: #0b1220;
+    --danger: #ff6b6b;
+    --success: #3dd68c;
+    --warning: #f0b429;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.btn-danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.field select,
+.field input[type='text'] {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.success-text {
+  color: var(--success);
+  font-size: 13px;
+}
+
+.warning-text {
+  color: var(--warning);
+  font-size: 13px;
+}

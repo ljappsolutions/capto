@@ -1,0 +1,62 @@
+html,
+body,
+#root {
+  background: transparent !important;
+}
+
+.controls {
+  height: 100%;
+  margin: 4px;
+  border-radius: 14px;
+  background: rgba(28, 30, 34, 0.92);
+  color: #f2f4f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.controls__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.2);
+}
+
+.dot--paused {
+  background: #f0b429;
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.2);
+}
+
+.controls__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.controls .btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.controls .btn-danger {
+  background: #c62828;
+  border-color: transparent;
+}

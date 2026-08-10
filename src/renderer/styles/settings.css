@@ -1,0 +1,13 @@
+.settings {
+  padding: 16px;
+  gap: 12px;
+}
+
+.settings header h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.settings header p {
+  margin: 0;
+}

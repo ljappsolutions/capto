@@ -1,0 +1,38 @@
+.complete {
+  padding: 16px;
+  gap: 12px;
+}
+
+.complete header h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.complete header p {
+  margin: 0;
+}
+
+.complete__preview video {
+  width: 100%;
+  max-height: 260px;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
+
+.complete__meta h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  word-break: break-all;
+}
+
+.complete__meta p {
+  margin: 0 0 4px;
+}
+
+.complete__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}

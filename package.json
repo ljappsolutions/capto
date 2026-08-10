@@ -1,0 +1,87 @@
+{
+  "name": "capto",
+  "version": "0.1.0",
+  "description": "Local-first macOS screen recorder",
+  "main": "./out/main/index.js",
+  "author": "Capto",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "yarn build && electron-builder --mac --arm64",
+    "package:dir": "yarn build && electron-builder --mac --arm64 --dir",
+    "preview": "electron-vite preview"
+  },
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.1",
+    "electron": "^36.3.2",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.28.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.2.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.1",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.1"
+  },
+  "build": {
+    "appId": "app.capto.desktop",
+    "productName": "Capto",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSCameraUsageDescription": "Camera access is used to include your camera in screen recordings.",
+        "NSMicrophoneUsageDescription": "Microphone access is used to include your voice in screen recordings.",
+        "NSAudioCaptureUsageDescription": "System audio access is used to include computer audio in screen recordings.",
+        "LSUIElement": true
+      }
+    }
+  }
+}
