@@ -1,0 +1,47 @@
+import { siteConfig } from "@/lib/site";
+
+export const metadata = {
+  title: "Overview",
+  description: "What Capto is, what you need to build it, and how these docs are organized.",
+  alternates: { canonical: "/docs" },
+};
+
+# Overview
+
+Capto is an open-source screen recorder for macOS, written in TypeScript on Electron. It lives in the menu bar and records a screen or window with your camera, microphone and system audio. It saves MP4s locally and can upload them to a bucket **you** own, then sign an expiring link to send to someone.
+
+There is no Capto service, account or hosted binary. You build the app from the <a href={siteConfig.github}>source code</a> and run it on your own Mac.
+
+## Quick start
+
+<pre><code>{`git clone ${siteConfig.cloneUrl}
+cd capto
+yarn install
+yarn dev`}</code></pre>
+
+That runs Capto in dev mode, where macOS shows it as **Electron**. To build a real `Capto.app` for your Applications folder, follow [Build from source](/docs/build).
+
+## Requirements
+
+| Need | Details |
+| --- | --- |
+| macOS | 14 Sonoma or later (14.2+ for system audio) |
+| Hardware | Apple Silicon (the build targets arm64) |
+| Toolchain | Node.js 22+, Yarn Classic 1.22, Xcode Command Line Tools |
+| Optional | Docker, to run the storage emulators |
+| Optional | An S3, S3-compatible, Azure or Google Cloud account, for share links |
+
+## What it does
+
+- **Captures** a display or a single window through Chromium's `desktopCapturer` and `getDisplayMedia`, with loopback system audio. It needs no virtual audio driver.
+- **Composites** the screen and a camera bubble onto a canvas at 30 fps. The bubble can be dragged, resized, reshaped (circle, rounded, square), bordered and mirrored, and changed mid-recording.
+- **Writes to disk as it records:** `MediaRecorder` WebM chunks arrive every second, so a crash costs about a second. When you stop, ffmpeg converts the recording to an H.264/AAC MP4.
+- **Shares** by uploading to your bucket and signing a read-only URL locally (SigV4, Azure SAS or GCS V4). It then wraps the URL in a viewer link whose payload never reaches a server.
+
+## How these docs are organized
+
+- **Start:** [build and run it](/docs/build), then read the [architecture](/docs/architecture) before changing code.
+- **Sharing:** [how links, expiry and revocation work](/docs/sharing), and how to [host the viewer page yourself](/docs/self-hosting).
+- **Storage setup:** per-provider guides with least-privilege policies: [AWS S3](/docs/aws-s3), [R2 and S3-compatible](/docs/s3-compatible), [Azure](/docs/azure), [Google Cloud](/docs/gcs).
+- **Reference:** the [camera overlay](/docs/camera), [privacy and security model](/docs/privacy-security), and [troubleshooting](/docs/troubleshooting).
+- **Project:** [contributing](/docs/contributing), including how to test providers against local emulators.

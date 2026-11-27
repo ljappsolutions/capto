@@ -1,0 +1,92 @@
+import { siteConfig } from "@/lib/site";
+
+export const metadata = {
+  title: "Contributing",
+  description: "Contribute to Capto: run it from source, test storage providers locally with emulators, and improve these docs.",
+  alternates: { canonical: "/docs/contributing" },
+};
+
+# Contributing
+
+Capto is MIT-licensed and contributions are welcome: bug reports, fixes, docs, and testing storage providers against real accounts. Start with <a href={siteConfig.contributing}>CONTRIBUTING.md</a> on GitHub.
+
+## Run the app from source
+
+Follow [Build from source](/docs/build) to clone, install and run `yarn dev`. Before opening a pull request:
+
+```bash
+yarn typecheck
+yarn lint
+yarn test
+```
+
+Read the [architecture](/docs/architecture) first if you're touching capture, compositing or storage. Pure logic goes in `src/shared` with a unit test next to it.
+
+## Test storage providers without cloud accounts
+
+All four providers can be tested against local emulators in Docker.
+
+### Run the storage integration tests
+
+The repo ships `docker-compose.storage.yml` with an S3 mock, Azurite and fake-gcs-server:
+
+```bash
+yarn test:storage:up     # start the emulators
+yarn test:storage        # run the provider integration tests
+yarn test:storage:down   # stop them
+```
+
+To click through the app against emulators by hand, run them individually as below.
+
+### S3 / S3-compatible: S3Mock
+
+```bash
+docker run --rm -p 9090:9090 adobe/s3mock:3.12.0
+curl -X PUT http://localhost:9090/my-bucket   # create a bucket
+```
+
+In Capto choose **S3-compatible** with endpoint `http://localhost:9090`, region `us-east-1`, **Force path-style** on, and any access key / secret (S3Mock accepts anything).
+
+### Azure Blob: Azurite
+
+```bash
+docker run --rm -p 10000:10000 \
+  mcr.microsoft.com/azure-storage/azurite \
+  azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose
+```
+
+Azurite uses a well-known development account: name `devstoreaccount1`, with the key published in [Microsoft's Azurite docs](https://learn.microsoft.com/azure/storage/common/storage-use-azurite#well-known-storage-account-and-key). In Capto set the Azure **endpoint** to `http://127.0.0.1:10000/devstoreaccount1` Capto creates the container on the first upload if it doesn't exist.
+
+### Google Cloud Storage: fake-gcs-server
+
+```bash
+docker run --rm -p 4443:4443 \
+  fsouza/fake-gcs-server -scheme http -port 4443 \
+  -public-host localhost:4443
+```
+
+Create a bucket:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"name":"capto-test"}' \
+  http://localhost:4443/storage/v1/b
+```
+
+In Capto set the GCS **API endpoint** to `http://localhost:4443`. fake-gcs-server accepts any well-formed service-account JSON, so a dummy key works for local testing.
+
+> Emulators are great for development and CI, but behavior can differ from the real services (signed URL validation especially). If you test against a real account, please report back in a GitHub issue. Azure and GCS support is marked community-tested until confirmed.
+
+## Improve these docs
+
+This website lives in the `website/` folder of the same repository (Next.js + MDX). Every docs page has an **Edit this page on GitHub** link at the bottom.
+
+```bash
+cd website
+yarn install
+yarn dev
+```
+
+## Share-link contract
+
+The desktop app and the viewer page agree on a payload format defined in `src/shared/shareLink.ts`. The website keeps a verbatim copy in `website/lib/shareLink.ts`. Change both together.

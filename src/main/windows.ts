@@ -88,8 +88,8 @@ function createWindow(
 
 export function showPickerWindow(): BrowserWindow {
   const win = createWindow('picker', {
-    width: 720,
-    height: 640,
+    width: 760,
+    height: 820,
     minWidth: 560,
     minHeight: 480,
     title: 'New Recording',
@@ -142,20 +142,26 @@ export function isRecordingHostParked(): boolean {
   return recordingHostParked
 }
 
-export function showSettingsWindow(): BrowserWindow {
-  return createWindow('settings', {
-    width: 480,
-    height: 520,
-    title: 'Settings',
-    resizable: false,
-    fullscreenable: false
-  })
+export function showSettingsWindow(query?: Record<string, string>): BrowserWindow {
+  return createWindow(
+    'settings',
+    {
+      width: 600,
+      height: 720,
+      minWidth: 520,
+      minHeight: 480,
+      title: 'Settings',
+      resizable: true,
+      fullscreenable: false
+    },
+    query
+  )
 }
 
 export function showRecordingsWindow(): BrowserWindow {
   return createWindow('recordings', {
-    width: 640,
-    height: 560,
+    width: 720,
+    height: 620,
     title: 'Recent Recordings',
     resizable: true,
     fullscreenable: false
@@ -166,8 +172,8 @@ export function showCompleteWindow(recordingId: string): BrowserWindow {
   return createWindow(
     'complete',
     {
-      width: 560,
-      height: 520,
+      width: 600,
+      height: 640,
       title: 'Recording Complete',
       resizable: true,
       fullscreenable: false
@@ -178,7 +184,7 @@ export function showCompleteWindow(recordingId: string): BrowserWindow {
 
 export function showControlsWindow(): BrowserWindow {
   const display = screen.getPrimaryDisplay()
-  const width = 420
+  const width = 640
   const height = 56
   const x = Math.round(display.workArea.x + (display.workArea.width - width) / 2)
   const y = Math.round(display.workArea.y + 24)
@@ -265,7 +271,7 @@ export function showWindow(kind: WindowKind, query?: Record<string, string>): Br
     case 'picker':
       return showPickerWindow()
     case 'settings':
-      return showSettingsWindow()
+      return showSettingsWindow(query)
     case 'recordings':
       return showRecordingsWindow()
     case 'complete':

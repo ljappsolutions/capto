@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getRecorder } from '@recorder/Recorder'
 import type { AppError, RecordingOptions, RecordingState } from '@shared/types'
-import { MAX_RECORDING_DURATION_MS } from '@shared/constants'
 
 export function useRecorder() {
   const recorder = getRecorder()
   const [state, setState] = useState<RecordingState>(recorder.getState())
   const [elapsedMs, setElapsedMs] = useState(0)
-  const [remainingMs, setRemainingMs] = useState(MAX_RECORDING_DURATION_MS)
+  const [remainingMs, setRemainingMs] = useState<number | null>(null)
   const [error, setError] = useState<AppError | null>(null)
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = useState(false)

@@ -1,9 +1,25 @@
+import { useState } from 'react'
 import { useSettings } from '../hooks/useSettings'
-import type { CameraPosition, VideoQuality } from '@shared/types'
+import type { VideoQuality } from '@shared/types'
+import { SharingSettingsPanel } from '../components/SharingSettingsPanel'
 import '../styles/settings.css'
+
+type Tab = 'general' | 'sharing'
+
+const LIMIT_OPTIONS = [
+  { label: 'No limit', minutes: 0 },
+  { label: '5 minutes', minutes: 5 },
+  { label: '15 minutes', minutes: 15 },
+  { label: '30 minutes', minutes: 30 },
+  { label: '1 hour', minutes: 60 },
+  { label: '2 hours', minutes: 120 }
+]
 
 export function SettingsScreen() {
   const { settings, loading, update } = useSettings()
+  const [tab, setTab] = useState<Tab>(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'sharing' ? 'sharing' : 'general'
+  )
 
   if (loading || !settings) {
     return (
@@ -20,6 +36,18 @@ export function SettingsScreen() {
         <p className="muted">Preferences are stored locally on this Mac.</p>
       </header>
 
+      <nav className="settings__tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'general'} className={tab === 'general' ? 'tab active' : 'tab'} onClick={() => setTab('general')}>
+          General
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'sharing'} className={tab === 'sharing' ? 'tab active' : 'tab'} onClick={() => setTab('sharing')}>
+          Sharing
+        </button>
+      </nav>
+
+      {tab === 'sharing' ? <SharingSettingsPanel settings={settings} update={update} /> : null}
+
+      {tab === 'general' ? (
       <section className="panel">
         <div className="field">
           <label className="toggle" htmlFor="login">
@@ -56,17 +84,22 @@ export function SettingsScreen() {
         </div>
 
         <div className="field">
-          <label htmlFor="cameraPos">Camera position</label>
+          <label htmlFor="limit">Recording limit</label>
           <select
-            id="cameraPos"
-            value={settings.cameraPosition}
-            onChange={(e) => void update({ cameraPosition: e.target.value as CameraPosition })}
+            id="limit"
+            value={settings.maxRecordingMinutes}
+            onChange={(e) => void update({ maxRecordingMinutes: Number(e.target.value) })}
           >
-            <option value="bottom-right">Bottom right</option>
-            <option value="bottom-left">Bottom left</option>
-            <option value="top-right">Top right</option>
-            <option value="top-left">Top left</option>
+            {LIMIT_OPTIONS.some((o) => o.minutes === settings.maxRecordingMinutes) ? null : (
+              <option value={settings.maxRecordingMinutes}>{settings.maxRecordingMinutes} minutes</option>
+            )}
+            {LIMIT_OPTIONS.map((o) => (
+              <option key={o.minutes} value={o.minutes}>
+                {o.label}
+              </option>
+            ))}
           </select>
+          <p className="muted">Recording stops automatically at the limit. Camera placement is set in the New Recording window.</p>
         </div>
 
         <div className="field">
@@ -112,6 +145,7 @@ export function SettingsScreen() {
           </label>
         </div>
       </section>
+      ) : null}
     </div>
   )
 }

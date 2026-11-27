@@ -9,3 +9,5 @@ release/
 !.env.example
 coverage/
 *.partial.webm
+*.tsbuildinfo
+.sst/

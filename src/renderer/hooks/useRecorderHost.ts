@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { getRecorder } from '@recorder/Recorder'
-import { MAX_RECORDING_DURATION_MS } from '@shared/constants'
 import type { RecorderCommand } from '@shared/ipc'
 
 /**
@@ -16,9 +15,11 @@ export function useRecorderHost(): void {
         type: 'progress',
         state: recorder.getState(),
         elapsedMs: recorder.getElapsedMs(),
-        remainingMs: Math.max(0, MAX_RECORDING_DURATION_MS - recorder.getElapsedMs()),
+        remainingMs: recorder.getRemainingMs(),
         microphoneEnabled: recorder.isMicrophoneEnabled(),
-        cameraEnabled: recorder.isCameraEnabled()
+        cameraEnabled: recorder.isCameraEnabled(),
+        cameraOverlay: recorder.getCameraOverlay() ?? undefined,
+        cameraLayout: recorder.getCameraLayout()
       })
     }
 
@@ -53,6 +54,22 @@ export function useRecorderHost(): void {
           break
         case 'toggle-camera':
           recorder.setCameraEnabled(!recorder.isCameraEnabled())
+          publishProgress()
+          break
+        case 'set-camera-overlay':
+          recorder.setCameraOverlay(command.overlay)
+          publishProgress()
+          break
+        case 'set-camera-layout':
+          recorder.setCameraLayout(command.layout)
+          publishProgress()
+          break
+        case 'move-camera-corner':
+          recorder.moveCameraToCorner(command.corner)
+          publishProgress()
+          break
+        case 'set-camera-size':
+          recorder.setCameraSize(command.size)
           publishProgress()
           break
       }

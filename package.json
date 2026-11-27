@@ -1,6 +1,6 @@
 {
   "name": "capto",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first macOS screen recorder",
   "main": "./out/main/index.js",
   "author": "Capto",
@@ -15,14 +15,23 @@
     "test:watch": "vitest",
     "package": "yarn build && electron-builder --mac --arm64",
     "package:dir": "yarn build && electron-builder --mac --arm64 --dir",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "test:storage": "CAPTO_STORAGE_IT=1 vitest run src/main/storage",
+    "test:storage:up": "docker compose -f docker-compose.storage.yml up -d --wait",
+    "test:storage:down": "docker compose -f docker-compose.storage.yml down"
   },
   "packageManager": "yarn@1.22.22",
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1178.0",
+    "@aws-sdk/lib-storage": "^3.1178.0",
+    "@aws-sdk/s3-request-presigner": "^3.1178.0",
+    "@azure/storage-blob": "^12.34.0",
+    "@google-cloud/storage": "^9.0.0",
     "ffmpeg-static": "^5.3.0",
+    "google-auth-library": "^11.3.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -81,7 +90,9 @@
         "NSMicrophoneUsageDescription": "Microphone access is used to include your voice in screen recordings.",
         "NSAudioCaptureUsageDescription": "System audio access is used to include computer audio in screen recordings.",
         "LSUIElement": true
-      }
+      },
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist"
     }
   }
 }

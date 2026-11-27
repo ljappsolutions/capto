@@ -1,0 +1,37 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and chip
+      placeholder: macOS 15.1, Apple M2
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Capto version
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Storage provider (if sharing-related)
+      options: [Not sharing-related, Amazon S3, S3-compatible, Azure Blob, Google Cloud Storage]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Remove any keys, URLs with signatures, or account names.
+      render: text

@@ -36,3 +36,12 @@
   gap: 8px;
   justify-content: flex-end;
 }
+
+.complete {
+  overflow-y: auto;
+}
+
+.complete__section-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}

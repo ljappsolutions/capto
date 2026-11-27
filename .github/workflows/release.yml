@@ -1,0 +1,34 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# Only maintainers can push v* tags (enforce with a tag ruleset). The token
+# can write releases, nothing else.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn test
+      # Unsigned until an Apple Developer ID is configured. To sign + notarize, add
+      # secrets CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+      # APPLE_TEAM_ID and remove CSC_IDENTITY_AUTO_DISCOVERY below.
+      - run: yarn build && npx electron-builder --mac --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.dmg
+            release/*.zip
+          generate_release_notes: true

@@ -1,4 +1,4 @@
-import { desktopCapturer, session } from 'electron'
+import { BrowserWindow, desktopCapturer, session } from 'electron'
 import { inferSourceType } from '@shared/sources'
 import type { CaptureSource } from '@shared/types'
 import { log } from './logger'
@@ -27,7 +27,17 @@ export async function getCaptureSources(): Promise<CaptureSource[]> {
     fetchWindowIcons: true
   })
 
-  const mapped: CaptureSource[] = sources.map((source) => {
+  // Capto's own windows can't be recorded: the picker becomes the hidden
+  // recording host and is content-protected, so it would capture as black.
+  const ownWindowIds = new Set(
+    BrowserWindow.getAllWindows()
+      .filter((w) => !w.isDestroyed())
+      .map((w) => w.getMediaSourceId().split(':')[1])
+  )
+  const isOwnWindow = (id: string): boolean =>
+    id.startsWith('window:') && ownWindowIds.has(id.split(':')[1])
+
+  const mapped: CaptureSource[] = sources.filter((s) => !isOwnWindow(s.id)).map((source) => {
     const type = inferSourceType(source.id, source.id.startsWith('screen:') ? 'screen' : 'window')
     return {
       id: source.id,

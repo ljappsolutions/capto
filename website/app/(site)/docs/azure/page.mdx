@@ -1,0 +1,55 @@
+export const metadata = {
+  title: "Azure Blob Storage setup",
+  description: "Set up a private Azure Blob container and share Capto recordings with SAS links.",
+  alternates: { canonical: "/docs/azure" },
+};
+
+# Azure Blob Storage setup
+
+Capto uploads to a **private container** and shares read-only **SAS** (shared access signature) links signed with your storage account key.
+
+## 1. Create a storage account
+
+1. In the [Azure portal](https://portal.azure.com/), create a **Storage account**.
+2. **Performance:** Standard. **Redundancy:** LRS is fine for shared videos.
+3. Under **Advanced**, you can leave **Allow enabling anonymous access on individual containers** unchecked. Capto doesn't need it.
+4. Create the account.
+
+## 2. Create a private container
+
+1. Open the storage account → **Data storage → Containers** → **+ Container**.
+2. Name it (for example `capto`) and set **Anonymous access level** to **Private (no anonymous access)**.
+
+## 3. Copy the account name and key
+
+Storage account → **Security + networking → Access keys**. Copy the **Storage account name** and **key1**.
+
+Capto needs the account key to sign SAS links locally. It's stored encrypted in your Keychain and only used to talk to Azure. Treat it like a password: it grants full access to the storage account, so a dedicated storage account just for Capto is a good idea.
+
+## 4. Configure Capto
+
+Open **Settings → Sharing** and choose **Azure Blob Storage**:
+
+| Field | Value |
+| --- | --- |
+| Account name | Your storage account name |
+| Account key | key1 (or key2) |
+| Container | Your container name |
+| Folder prefix | `capto` |
+| Default expiry | Up to 30 days |
+
+Click **Test connection**.
+
+## How Azure links work
+
+Capto creates a **read-only blob SAS** for the single video file. Azure doesn't impose a hard expiry cap on SAS tokens, so Capto caps link lifetime at **30 days** in the app.
+
+To revoke a link early, delete the blob (**Delete from cloud** in Capto). Rotating the account key also invalidates every SAS signed with it, so use that only in an emergency, and update the key in Capto afterwards.
+
+## Optional: auto-delete
+
+Storage account → **Data management → Lifecycle management** → **Add a rule**. Limit it to blobs with the prefix `capto/` (container name plus prefix, e.g. `capto/capto/`), and **Delete the blob** if it was created more than N days ago.
+
+## Optional: CORS for captions
+
+Storage account → **Settings → Resource sharing (CORS)** → **Blob service**: allowed origin `https://capto.ljappsolutions.com`, methods `GET, HEAD`, allowed headers `*`, max age `3600`.

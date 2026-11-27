@@ -1,177 +1,155 @@
 # Capto
 
-Local-first macOS screen recorder. Capto lives in the menu bar, captures screens or application windows, mixes microphone + system audio, optionally composites a circular webcam bubble, and saves short MP4 recordings on disk for QuickTime. No cloud, accounts, or uploads.
+**An open-source screen recorder for macOS that you build, own and host.** Record your screen with your camera and voice. Then send a private, expiring link from **your own** cloud storage. There's no service, account, subscription or tracking.
 
-## Architecture
+Capto is written in TypeScript on Electron and distributed as source. It started as a replacement for paid hosted screen-recording tools, for the everyday job of recording a walkthrough and sending it to a client.
 
-| Layer | Responsibility |
-| --- | --- |
-| **Main** (`src/main`) | App lifecycle, tray, windows, permissions, `desktopCapturer`, display-media handler, settings, progressive disk writes, Finder / System Settings |
-| **Preload** (`src/preload`) | Tiny typed `window.recorderAPI` via `contextBridge` |
-| **Renderer** (`src/renderer`) | React UI: picker, permissions, controls, completion, recordings, settings |
-| **Recorder** (`src/recorder`) | `Recorder`, `AudioMixer`, `VideoCompositor`, MediaRecorder orchestration |
-| **Shared** (`src/shared`) | IPC contracts, types, constants, pure helpers |
+[Website & docs](https://capto.ljappsolutions.com) · [Build from source](#build-from-source) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · License: [MIT](LICENSE)
 
-Security baseline: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. The renderer never receives `ipcRenderer`.
+---
 
-The **picker window hosts the recording engine**. The floating controls window sends commands over IPC so pause/mic/camera/stop work across BrowserWindows.
+## Features
 
-## Prerequisites
+- **Record a screen or a single window** with microphone and computer (system) audio. Saves H.264/AAC `.mp4` files that open in QuickTime. No virtual audio driver needed.
+- **A camera bubble you can actually place:** drag it anywhere, resize it, choose circle, rounded or square, mirror it and add a border. While recording, change its size or corner, or switch to camera-only.
+- **Lives in the menu bar.** Start a recording from the menu or with <kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd>, then pause or stop from a small floating bar.
+- **Crash-safe.** Video is written to disk every second while you record, and interrupted recordings are recovered on the next launch.
+- **Share links from your own storage:**
+  - Amazon S3
+  - S3-compatible services (Cloudflare R2, Backblaze B2, Wasabi, MinIO…)
+  - Azure Blob Storage
+  - Google Cloud Storage
+- **Expiring, revocable links.** Pre-signed links last up to 7 days (S3, GCS) or 30 days (Azure). Issue a new link without re-uploading, or delete the cloud copy to revoke it.
+- **A clean viewer page.** The storage link travels in the URL fragment (`/v#…`), which browsers never send to the server. You can host the viewer yourself, or share direct file links.
+- **Private by design.** Recordings stay on your Mac until you choose to share one. Cloud credentials are encrypted with the macOS Keychain and never reach the UI process.
 
-- macOS 14+
-- Apple Silicon (arm64) recommended
-- Node.js 22+ (current LTS)
-- Yarn Classic 1.22+
-- Xcode Command Line Tools (for native Electron rebuilds)
+## Build from source
 
-## Install (development)
+**Requirements:**
+- macOS 14 (Sonoma) or later on Apple Silicon. System audio needs 14.2 or later.
+- [Node.js 22+](https://nodejs.org).
+- [Yarn Classic 1.22](https://classic.yarnpkg.com) (`corepack enable`).
+- The Xcode Command Line Tools (`xcode-select --install`).
 
 ```bash
+git clone https://github.com/ljappsolutions/capto.git
+cd capto
 yarn install
 yarn dev
 ```
 
-## Install (as Capto.app)
+`yarn dev` runs Capto with hot reload. macOS shows it as **Electron**, so grant permissions to "Electron" while developing.
+
+### Package your own Capto.app
 
 ```bash
-yarn package:dir   # fast: builds release/mac-arm64/Capto.app
-# or
-yarn package       # also builds a .dmg in release/
+CSC_IDENTITY_AUTO_DISCOVERY=false yarn package:dir
+ditto release/mac-arm64/Capto.app /Applications/Capto.app
+open /Applications/Capto.app
 ```
 
-Then open `release/mac-arm64/Capto.app` (or drag the DMG app into `/Applications`).
+This makes an ad-hoc signed app, and you won't get a Gatekeeper prompt because you built it yourself. Use `yarn package` if you also want a `.dmg`. To sign with your own Apple Developer ID, leave out the environment variable (see [docs/RELEASING.md](docs/RELEASING.md)).
 
-### Why Activity Monitor / permissions say “Electron”
+### Permissions
 
-`yarn dev` launches the **Electron** binary from `node_modules`. macOS names that process **Electron**, not Capto. That is expected.
+macOS asks for each permission the first time a feature needs it. You can change them later in System Settings → Privacy & Security.
 
-To see **Capto** in Screen Recording, Login Items, and the menu bar as a real app, run a packaged build (`yarn package:dir`).
-
-| Mode | Process name in macOS | Bundle id |
+| Permission | Needed for | Notes |
 | --- | --- | --- |
-| `yarn dev` | Electron | Electron’s id |
-| Packaged `.app` | Capto | `app.capto.desktop` |
+| Screen & System Audio Recording | Required | Capto shows up in the list after its first capture attempt. Quit and reopen Capto after granting |
+| Microphone | Optional | Your voice |
+| Camera | Optional | The camera bubble |
 
-## Updating
+Every ad-hoc rebuild has a new code signature, so macOS may ask for Screen Recording again after an update.
 
-**Dev workflow**
+### Updating
 
-1. Pull / edit code
-2. Stop the running app (tray → **Quit Capto**)
-3. `yarn install` if dependencies changed
-4. `yarn dev`
+```bash
+git pull && yarn install
+CSC_IDENTITY_AUTO_DISCOVERY=false yarn package:dir
+```
 
-**Packaged app workflow**
+Quit Capto (menu bar icon → **Quit Capto**), replace `/Applications/Capto.app` with the new build, and reopen it. Settings and recordings are kept.
 
-1. Quit Capto completely
-2. `yarn package:dir` (or `yarn package`)
-3. Replace the old app: drag the new `Capto.app` over the previous copy in `/Applications` (or open the new one from `release/`)
-4. Re-grant Screen Recording if macOS treats it as a new binary (common after rebuilds/re-signing)
+### Uninstalling
 
-## Uninstall
+Quit Capto and delete `/Applications/Capto.app`. To also remove its data:
+- Recordings: `~/Movies/Capto/`
+- Settings and encrypted credentials: `~/Library/Application Support/Capto/` (`capto/` for dev builds)
+- Permissions: System Settings → Privacy & Security
+- Login item: System Settings → General → Login Items
 
-1. Quit Capto (tray → **Quit Capto**). If a stuck **Electron** process remains: Activity Monitor → quit **Electron**, or `pkill -f 'Electron.*capto|Capto'`.
-2. Delete the app:
-   - Dev: nothing in `/Applications` — just stop `yarn dev`
-   - Packaged: move `Capto.app` to Trash
-3. Optional data cleanup:
-   - Settings: `~/Library/Application Support/capto/`
-   - Recordings: `~/Movies/Capto/`
-   - Login Items: System Settings → General → Login Items → remove Capto/Electron if listed
-   - Privacy: System Settings → Privacy & Security → Screen Recording / Mic / Camera → remove Capto or Electron
+## Using it
+
+1. Click the menu bar icon → **New Recording**, or press <kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd>.
+2. Pick a screen or window, and choose your microphone, camera and computer audio.
+3. With the camera on, drag and resize the bubble in the preview.
+4. Click **Start Recording**. After a 3-second countdown, use the floating bar to pause, toggle the mic or camera, move the bubble, or stop.
+5. The `.mp4` is saved to `~/Movies/Capto/`, and Capto shows options to reveal it in Finder, rename it or share it.
+
+### Sharing with a link
+
+1. Create a private bucket or container, plus credentials limited to it. The [storage guides](https://capto.ljappsolutions.com/docs) include least-privilege policies for every provider.
+2. In Capto, open **Settings → Sharing**:
+   - Choose the provider.
+   - Enter the bucket or container and a folder.
+   - Save your credentials, then click **Test connection**.
+3. After a recording, choose an expiry and click **Upload & copy link**.
+
+From the recording's page you can copy the link again, issue a **New link** with a different expiry, or **Delete from cloud** to revoke it. Settings can also upload and copy the link automatically when a recording finishes. Capto never makes your bucket public.
 
 ## Development
 
 ```bash
-yarn dev          # electron-vite + Electron (shows as Electron)
-yarn typecheck
-yarn lint
-yarn test
-yarn build
-yarn package:dir  # Capto.app only
-yarn package      # Capto.app + dmg
+yarn typecheck && yarn lint && yarn test   # run before every PR
+yarn test:storage:up                       # S3Mock, Azurite, fake-gcs-server in Docker
+yarn test:storage                          # provider integration tests
+yarn test:storage:down
 ```
 
-On launch, Capto shows **only a menu bar icon** (no large main window). Use:
+You don't need a cloud account to work on uploads and signing: every provider has an integration test that runs against a local emulator.
 
-- Menu: **New Recording**
-- Shortcut: **⌘⇧R** (configurable)
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): dev workflow, using the app against emulators, macOS permission quirks in dev, and troubleshooting.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): processes, the recording pipeline, storage providers and the share-link format.
+- [docs/RELEASING.md](docs/RELEASING.md): versioning, signing and notarization, and deploying the website.
 
-## macOS permissions
+### Project structure
 
-| Permission | Required? | Notes |
-| --- | --- | --- |
-| Screen Recording | Yes | Enable the process you launched (**Electron** in dev, **Capto** when packaged). Usually requires quit/reopen after granting. |
-| Microphone | Optional | Requested in-app via `askForMediaAccess`. |
-| Camera | Optional | Requested in-app. |
-| System Audio | With screen | Loopback via Electron display-media on macOS 14+. Packaged apps need `NSAudioCaptureUsageDescription`. |
-
-### Why Capto is missing from the Screen Recording list
-
-macOS does **not** pre-populate that list. An app appears only after it **attempts** screen capture (TCC). Capto does this when you:
-
-1. Open the source picker (enumerates sources), or
-2. Click **Open System Settings** for Screen Recording (probes capture, then opens Settings)
-
-Then look for:
-
-- **Electron** if you used `yarn dev`
-- **Capto** if you opened `Capto.app`
-
-There is no supported API to insert an app into that list without a capture attempt, and no way for a `yarn dev` session to appear as “Capto” — that requires packaging.
-
-### Packaged vs `yarn dev`
-
-When you launch from a terminal/IDE, permissions attach to **Electron**. Packaged builds use Capto’s bundle id and Info.plist usage strings. Always toggle the entry that matches the process you actually launched.
-
-## System audio caveats
-
-- Target: macOS 14.2+ desktop/loopback capture in Chromium/Electron.
-- Packaged builds **must** include `NSAudioCaptureUsageDescription` (configured in `package.json` → `build.mac.extendInfo`).
-- A missing usage description can yield an audio track that is silent.
-- Capto does **not** use BlackHole, Soundflower, or virtual audio drivers.
-
-### Troubleshooting: “No system audio in recording”
-
-1. Confirm Screen Recording is granted for the process you launched.
-2. Confirm **System Audio** is enabled in the picker.
-3. Prefer a packaged `.app` build when validating system audio.
-4. Verify `NSAudioCaptureUsageDescription` is present in the app Info.plist.
-5. Quit Capto fully and reopen after changing Screen Recording permission.
-6. Check logs for `SYSTEM_AUDIO_UNAVAILABLE` / muted or ended audio tracks.
-
-## Storage
-
-- Recordings: `~/Movies/Capto/` (via `app.getPath('videos')`) — final files are `.mp4`
-- Metadata JSON: `~/Movies/Capto/metadata/`
-- Interrupted `.partial.webm` files are moved to `~/Movies/Capto/Recoveries/` on next launch and listed as recovered
-- Settings: `~/Library/Application Support/capto/settings.json`
-
-Filename pattern: `YYYY-MM-DD_HH-mm-ss_Source-Name.mp4` (H.264/AAC for QuickTime)
-
-MVP limit: **5 minutes** per recording (auto-stop). Capture is recorded as WebM in memory/chunks, then converted to MP4 when the recording finishes.
-
-## Build a .app
-
-```bash
-yarn package
+```
+src/main        Electron main process: windows, tray, capture, files, settings, credentials, uploads
+src/preload     Typed bridge (window.recorderAPI) between UI and main
+src/renderer    React UI: picker, controls, recordings, settings, sharing
+src/recorder    Recording engine: MediaRecorder, audio mixing, camera compositing
+src/shared      Pure helpers and IPC contracts (unit tested)
+website/        Next.js site: project page, docs and the /v share viewer
 ```
 
-Output lands in `release/`. Initial target is **arm64**. Developer ID signing / notarization can be added later; do not commit certificates or Apple credentials.
+## Privacy
 
-`LSUIElement` is set so Capto behaves as a menu-bar agent (no Dock icon).
+Capto has no backend and collects no analytics. Recordings are only uploaded when you ask, and only to the storage account you configured. The viewer page plays the video straight from your bucket, using a link that stays in the URL fragment. See [SECURITY.md](SECURITY.md) for how credentials are stored.
 
-## Current limitations
+## Roadmap
 
-- Capture uses WebM internally, then transcodes to H.264/AAC MP4 for QuickTime (requires bundled ffmpeg-static)
-- One active recording at a time
-- Individual windows/screens (no “all windows of an app” grouping)
-- Floating controls may appear in recordings if the chosen source includes that display region; Electron does not reliably exclude the controls window from all capture modes
-- The picker window hosts the compositor and is parked (opacity 0) rather than hidden during recording so `canvas.captureStream` keeps producing frames
-- No cloud upload, sharing, transcription, or editing
-- Ad-hoc / local packaging first; notarization not wired
-- Launch at login only registers for packaged Capto.app (not `yarn dev`)
+Next up:
+- Trim before sharing.
+- Hardware-accelerated export.
+- Captions.
+- A floating on-screen camera bubble.
+
+See [docs/ROADMAP.md](docs/ROADMAP.md). Ideas and votes are welcome in [Issues](https://github.com/ljappsolutions/capto/issues).
+
+## Contributing
+
+Contributions are all very welcome:
+- Bug reports.
+- Fixes.
+- Docs.
+- Testing against real Azure and Google Cloud accounts.
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+[MIT](LICENSE) © LJ App Solutions and contributors.
+
+> Name note: another commercial macOS app is also called "Capto". This project may be renamed before a wider launch.

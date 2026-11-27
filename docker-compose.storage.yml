@@ -1,0 +1,15 @@
+# Local storage emulators for testing sharing without cloud accounts.
+#   yarn test:storage:up && yarn test:storage && yarn test:storage:down
+services:
+  # S3-compatible API (any access key / secret is accepted).
+  s3mock:
+    image: adobe/s3mock:3.12.0
+    ports: ['9090:9090']
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.34.0
+    command: azurite-blob --blobHost 0.0.0.0 --loose --skipApiVersionCheck
+    ports: ['10000:10000']
+  fake-gcs:
+    image: fsouza/fake-gcs-server:1.52.2
+    command: -scheme http -public-host localhost:4443 -external-url http://localhost:4443
+    ports: ['4443:4443']

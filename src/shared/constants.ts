@@ -3,8 +3,13 @@ export const APP_ID = 'app.capto.desktop'
 
 export const DEFAULT_GLOBAL_SHORTCUT = 'CommandOrControl+Shift+R'
 
-/** Maximum recording duration for MVP (5 minutes). */
-export const MAX_RECORDING_DURATION_MS = 5 * 60 * 1000
+/** Default recording limit in minutes; 0 means unlimited. */
+export const DEFAULT_MAX_RECORDING_MINUTES = 0
+/** Upper bound accepted for the limit setting (8 hours). */
+export const MAX_RECORDING_MINUTES_LIMIT = 8 * 60
+
+export const CREDENTIALS_FILENAME = 'credentials.bin'
+export const POSTER_FILENAME = 'poster.jpg'
 
 export const COUNTDOWN_SECONDS = 3
 
@@ -26,7 +31,7 @@ export const MIME_CANDIDATES = [
   'video/webm'
 ] as const
 
-export const METADATA_VERSION = 1
+export const METADATA_VERSION = 2
 
 export const SETTINGS_FILENAME = 'settings.json'
 export const METADATA_DIRNAME = 'metadata'

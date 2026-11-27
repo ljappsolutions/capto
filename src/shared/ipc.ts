@@ -1,4 +1,10 @@
 import type {
+  CredentialStatus,
+  ShareRecord,
+  ShareRequest,
+  StorageProviderId,
+  StorageTestResult,
+  UploadProgressEvent,
   AppSettings,
   AppSettingsView,
   AppendChunkPayload,
@@ -43,7 +49,18 @@ export const IpcChannels = {
   getPartialRecoveries: 'capto:get-partial-recoveries',
   recorderCommand: 'capto:recorder-command',
   recorderEvent: 'capto:recorder-event',
-  exportProgress: 'capto:export-progress'
+  exportProgress: 'capto:export-progress',
+  getCredentialStatuses: 'capto:get-credential-statuses',
+  saveCredentials: 'capto:save-credentials',
+  clearCredentials: 'capto:clear-credentials',
+  testStorage: 'capto:test-storage',
+  shareRecording: 'capto:share-recording',
+  cancelShare: 'capto:cancel-share',
+  regenerateShareLink: 'capto:regenerate-share-link',
+  copyShareLink: 'capto:copy-share-link',
+  deleteRemoteCopies: 'capto:delete-remote-copies',
+  uploadProgress: 'capto:upload-progress',
+  openDocs: 'capto:open-docs'
 } as const
 
 export type RecorderCommand =
@@ -52,15 +69,22 @@ export type RecorderCommand =
   | { type: 'stop' }
   | { type: 'toggle-mic' }
   | { type: 'toggle-camera' }
+  | { type: 'set-camera-overlay'; overlay: import('./types').CameraOverlay }
+  | { type: 'set-camera-layout'; layout: import('./types').CameraLayout }
+  | { type: 'move-camera-corner'; corner: import('./types').CameraPosition }
+  | { type: 'set-camera-size'; size: number }
 
 export type RecorderBridgeEvent =
   | {
       type: 'progress'
       state: import('./types').RecordingState
       elapsedMs: number
-      remainingMs: number
+      /** null when there is no duration limit. */
+      remainingMs: number | null
       microphoneEnabled: boolean
       cameraEnabled: boolean
+      cameraOverlay?: import('./types').CameraOverlay
+      cameraLayout?: import('./types').CameraLayout
     }
   | { type: 'state'; state: import('./types').RecordingState }
   | { type: 'error'; message: string }
@@ -109,4 +133,17 @@ export interface RecorderAPI {
   onRecorderEvent: (listener: (event: RecorderBridgeEvent) => void) => () => void
   publishRecorderEvent: (event: RecorderBridgeEvent) => Promise<void>
   onExportProgress: (listener: (event: ExportProgressEvent) => void) => () => void
+  /** Only status + hint come back; secrets never return to the renderer. */
+  getCredentialStatuses: () => Promise<CredentialStatus[]>
+  saveCredentials: (credentials: unknown) => Promise<CredentialStatus>
+  clearCredentials: (provider: StorageProviderId) => Promise<CredentialStatus>
+  testStorage: () => Promise<StorageTestResult>
+  shareRecording: (request: ShareRequest) => Promise<ShareRecord>
+  cancelShare: (recordingId: string) => Promise<void>
+  regenerateShareLink: (recordingId: string, expiresInSec?: number) => Promise<ShareRecord>
+  copyShareLink: (recordingId: string) => Promise<string>
+  deleteRemoteCopies: (recordingId: string) => Promise<void>
+  onUploadProgress: (listener: (event: UploadProgressEvent) => void) => () => void
+  /** Opens a page under the website's /docs in the default browser. */
+  openDocs: (slug: string) => Promise<void>
 }
