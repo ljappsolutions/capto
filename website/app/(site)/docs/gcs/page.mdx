@@ -1,0 +1,61 @@
+export const metadata = {
+  title: "Google Cloud Storage setup",
+  description: "Set up a private GCS bucket and a service account for Capto with V4 signed URLs.",
+  alternates: { canonical: "/docs/gcs" },
+};
+
+# Google Cloud Storage setup
+
+Capto uploads to a private bucket using a **service account** and shares **V4 signed URLs**, which last at most **7 days**.
+
+## 1. Create a bucket
+
+1. In the [Cloud Storage console](https://console.cloud.google.com/storage/browser), click **Create**.
+2. Pick a unique name and a location.
+3. **Access control:** choose **Uniform** (bucket-level access).
+4. Keep **Enforce public access prevention** **on**.
+5. Create the bucket.
+
+## 2. Create a service account
+
+1. Open **IAM & Admin → Service Accounts** → **Create service account**. Name it `capto-sharing`. Skip the project-level role step.
+2. Go back to your bucket → **Permissions** → **Grant access**. Add the service account's email as a principal with the role **Storage Object Admin**. Granting it on the bucket (not the project) keeps it limited to this one bucket.
+3. Open the service account → **Keys** → **Add key → Create new key → JSON**. A `.json` file downloads.
+
+> Some organizations block service-account key creation with the `iam.disableServiceAccountKeyCreation` policy. Ask your admin for an exception for this project.
+
+## 3. Configure Capto
+
+Open **Settings → Sharing** and choose **Google Cloud Storage**:
+
+| Field | Value |
+| --- | --- |
+| Service account key | Paste the JSON file's contents, or choose the file |
+| Bucket | Your bucket name |
+| Folder prefix | `capto` |
+| Default expiry | Up to 7 days |
+
+The key is encrypted with your Keychain. After Capto saves it, you can delete the downloaded JSON file.
+
+Click **Test connection**.
+
+## How GCS links work
+
+Capto signs a **V4 signed URL** locally with the service account's private key. Google caps V4 signed URLs at **7 days**. Use **New link** to extend sharing without uploading again.
+
+To revoke a link early, delete the object. Deleting the service-account key invalidates every link signed with it.
+
+## Optional: auto-delete
+
+Bucket → **Lifecycle** → **Add a rule** → **Delete object**, condition **Age** N days, and **Object name matches prefix** `capto/`.
+
+## Optional: CORS for captions
+
+CORS on GCS is set from the command line:
+
+```bash
+cat > cors.json <<'JSON'
+[{ "origin": ["https://capto.ljappsolutions.com"], "method": ["GET", "HEAD"], "maxAgeSeconds": 3600 }]
+JSON
+gcloud storage buckets update gs://BUCKET --cors-file=cors.json
+```

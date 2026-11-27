@@ -1,0 +1,109 @@
+import { siteConfig } from "@/lib/site";
+
+export const metadata = {
+  title: "Build from source",
+  description: "Clone Capto, run it in dev mode, package your own Capto.app, grant macOS permissions, update and uninstall.",
+  alternates: { canonical: "/docs/build" },
+};
+
+# Build from source
+
+Capto is distributed only as source. This page takes you from a fresh clone to a `Capto.app` in your Applications folder.
+
+## 1. Install the toolchain
+
+- **Node.js 22 or later.** Use [nodejs.org](https://nodejs.org), `brew install node@22`, or a version manager such as `fnm` or `nvm`.
+- **Yarn Classic 1.22:** `corepack enable`, or `npm i -g yarn`.
+- **Xcode Command Line Tools:** `xcode-select --install`.
+
+## 2. Clone and run in dev mode
+
+<pre><code>{`git clone ${siteConfig.cloneUrl}
+cd capto
+yarn install
+yarn dev`}</code></pre>
+
+`yarn dev` starts electron-vite. The React UI hot-reloads; restart the command after you change main-process code. Capto runs as a menu bar app with no Dock icon. Click the menu bar icon or press **⌘⇧R** to open the recorder.
+
+**Dev mode runs the Electron binary** from `node_modules`, so macOS shows it as **Electron** in Activity Monitor and in every Privacy & Security list. Grant permissions to "Electron" while you develop.
+
+**Only one Capto runs per settings folder.** If you also have a packaged Capto running, quit it first, or the dev build exits with "Another Capto instance is running".
+
+## 3. Run the checks
+
+```bash
+yarn typecheck   # tsc for main + renderer
+yarn lint        # ESLint
+yarn test        # Vitest unit tests
+```
+
+## 4. Package your own Capto.app
+
+```bash
+CSC_IDENTITY_AUTO_DISCOVERY=false yarn package:dir
+```
+
+This produces `release/mac-arm64/Capto.app`. Use `yarn package` if you also want a `.dmg`. The environment variable tells electron-builder to build an ad-hoc (unsigned) app instead of picking up whatever Apple certificate is in your keychain.
+
+Install it:
+
+```bash
+ditto release/mac-arm64/Capto.app /Applications/Capto.app
+open /Applications/Capto.app
+```
+
+You built it locally, so macOS doesn't quarantine it, and there's no Gatekeeper prompt.
+
+### Signing with your own Developer ID (optional)
+
+If you have an Apple Developer ID Application certificate, leave out `CSC_IDENTITY_AUTO_DISCOVERY=false` and electron-builder signs with it. Signed builds run under the hardened runtime. The entitlements in `resources/entitlements.mac.plist` allow JIT, the camera and the microphone. Without them, macOS silently denies camera and microphone access. For notarization, see `docs/RELEASING.md` in the repo.
+
+## 5. Grant permissions
+
+| Permission | When macOS asks | Notes |
+| --- | --- | --- |
+| Screen & System Audio Recording | First time you open the source picker | Capto only appears in the list after it tries to capture. Turn it on, then **quit and reopen** Capto |
+| Microphone | When you pick a microphone | Optional |
+| Camera | When you turn the camera on | Optional |
+
+An ad-hoc build gets a new code signature every time you rebuild, so macOS may ask for Screen Recording again after an update. If the toggle looks on but capture fails, remove Capto from the list with **−** and grant it again.
+
+## 6. Make a recording
+
+1. Click the menu bar icon → **New Recording**, or press **⌘⇧R**.
+2. Pick a screen or window, and choose your microphone, camera and computer audio.
+3. With the camera on, drag and resize the bubble in the preview (see [Camera overlay](/docs/camera)).
+4. Click **Start Recording**. Use the floating bar to pause, toggle the mic or camera, move the bubble, or stop.
+5. The MP4 lands in `~/Movies/Capto/`. To share it, set up a provider: start with [How sharing works](/docs/sharing).
+
+## Updating
+
+```bash
+git pull
+yarn install
+CSC_IDENTITY_AUTO_DISCOVERY=false yarn package:dir
+```
+
+Quit Capto (menu bar icon → **Quit Capto**), replace `/Applications/Capto.app` with the new build, and open it again. Settings and recordings are kept. Older settings files migrate automatically.
+
+## Uninstalling
+
+1. Quit Capto and delete `/Applications/Capto.app`.
+2. Optionally remove its data:
+
+| What | Where |
+| --- | --- |
+| Recordings and their metadata | `~/Movies/Capto/` |
+| Settings and encrypted credentials (packaged app) | `~/Library/Application Support/Capto/` |
+| Settings when running `yarn dev` | `~/Library/Application Support/capto/` |
+| Permissions | System Settings → Privacy & Security |
+| Launch at login | System Settings → General → Login Items |
+
+## Running dev builds from an editor or AI coding tool
+
+macOS checks camera access against the *responsible* process: whichever app launched Electron. If that's an IDE, terminal or tool that isn't allowed to ask for the camera, macOS denies access without showing a prompt. Either run `yarn dev` from Terminal.app, or build and launch through Launch Services:
+
+```bash
+yarn build
+open -n node_modules/electron/dist/Electron.app --args "$PWD"
+```

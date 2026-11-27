@@ -1,0 +1,111 @@
+export const metadata = {
+  title: "AWS S3 setup",
+  description: "Create a private S3 bucket and a least-privilege IAM user for Capto sharing.",
+  alternates: { canonical: "/docs/aws-s3" },
+};
+
+# AWS S3 setup
+
+This guide creates a private bucket and an IAM user that can only write, read and delete objects under Capto's folder. Allow about 10 minutes.
+
+## 1. Create a private bucket
+
+1. Open the [S3 console](https://console.aws.amazon.com/s3/) and click **Create bucket**.
+2. Choose a globally unique name (for example `acme-capto-shares`) and a region close to the people you share with.
+3. Leave **Object Ownership** at *ACLs disabled*.
+4. Leave **Block all public access** **on**. Capto never needs public objects; links are signed.
+5. Default encryption (SSE-S3) is fine. Create the bucket.
+
+## 2. Create an IAM user
+
+1. Open the [IAM console](https://console.aws.amazon.com/iam/) → **Users** → **Create user**. Name it `capto-sharing`. It does not need console access.
+2. On the permissions step choose **Attach policies directly** → **Create policy** → **JSON**, and paste the policy below. Replace `BUCKET` with your bucket name and `PREFIX` with the folder prefix you'll use in Capto (default: `capto`).
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CaptoSharing",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::BUCKET/PREFIX/*"
+    }
+  ]
+}
+```
+
+3. Name the policy `CaptoSharingPolicy`, attach it to the user and finish.
+4. Open the user → **Security credentials** → **Create access key** → choose *Application running outside AWS*. Copy the **Access key ID** and **Secret access key**. You won't see the secret again.
+
+The user can't list buckets, read other folders or change settings. That's intentional.
+
+## 3. Configure Capto
+
+Open **Settings → Sharing**, choose **Amazon S3** and fill in:
+
+| Field | Value |
+| --- | --- |
+| Access key ID | From step 2 |
+| Secret access key | From step 2 (stored encrypted in your Keychain) |
+| Region | The bucket's region, e.g. `us-east-1` |
+| Bucket | Your bucket name |
+| Folder prefix | Must match `PREFIX` in the policy (default `capto`) |
+| Default expiry | Up to 7 days |
+
+Click **Test connection**. Capto uploads, signs, reads and deletes a tiny probe object under your prefix.
+
+## Presigned URLs and temporary credentials
+
+S3 presigned URLs last at most **7 days**, and only when signed with a long-term IAM user key like the one above. If you sign with **temporary credentials** (AWS SSO / IAM Identity Center, an assumed role, or STS session tokens), the URL **expires when the session expires**, even if you picked 7 days. Use an IAM user access key for Capto.
+
+## Optional: auto-delete old recordings
+
+A lifecycle rule removes shared videos after N days so storage doesn't grow forever.
+
+1. Open the bucket → **Management** → **Create lifecycle rule**.
+2. Name it `capto-expire`, choose **Limit the scope using filters**, and set the prefix to `capto/` (your prefix with a trailing slash).
+3. Check **Expire current versions of objects** and enter the number of days, for example `30`.
+4. If versioning is on, also check **Permanently delete noncurrent versions**.
+
+Or with the AWS CLI:
+
+```bash
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket BUCKET \
+  --lifecycle-configuration '{
+    "Rules": [{
+      "ID": "capto-expire",
+      "Filter": { "Prefix": "capto/" },
+      "Status": "Enabled",
+      "Expiration": { "Days": 30 },
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 }
+    }]
+  }'
+```
+
+## Optional: CORS for captions
+
+Only needed if you share captions (see [How sharing works](/docs/sharing#captions-and-cors)). Bucket → **Permissions** → **CORS**:
+
+```json
+[
+  {
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedOrigins": ["https://capto.ljappsolutions.com"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+## Common errors
+
+- **AccessDenied:** the folder prefix in Capto doesn't match `PREFIX` in the policy, or the policy isn't attached to the user.
+- **PermanentRedirect / wrong region:** the region in Capto doesn't match the bucket's region.
+- **SignatureDoesNotMatch:** the secret key was pasted with extra spaces, or your Mac's clock is far off.

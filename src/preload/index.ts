@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { UploadProgressEvent } from '../shared/types'
 import {
   IpcChannels,
   type ExportProgressEvent,
@@ -70,7 +71,28 @@ const api: RecorderAPI = {
     return () => {
       ipcRenderer.removeListener(IpcChannels.exportProgress, handler)
     }
-  }
+  },
+  getCredentialStatuses: () => ipcRenderer.invoke(IpcChannels.getCredentialStatuses),
+  saveCredentials: (credentials) => ipcRenderer.invoke(IpcChannels.saveCredentials, credentials),
+  clearCredentials: (provider) => ipcRenderer.invoke(IpcChannels.clearCredentials, provider),
+  testStorage: () => ipcRenderer.invoke(IpcChannels.testStorage),
+  shareRecording: (request) => ipcRenderer.invoke(IpcChannels.shareRecording, request),
+  cancelShare: (recordingId) => ipcRenderer.invoke(IpcChannels.cancelShare, recordingId),
+  regenerateShareLink: (recordingId, expiresInSec) =>
+    ipcRenderer.invoke(IpcChannels.regenerateShareLink, recordingId, expiresInSec),
+  copyShareLink: (recordingId) => ipcRenderer.invoke(IpcChannels.copyShareLink, recordingId),
+  deleteRemoteCopies: (recordingId) =>
+    ipcRenderer.invoke(IpcChannels.deleteRemoteCopies, recordingId),
+  onUploadProgress: (listener: (event: UploadProgressEvent) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: UploadProgressEvent): void => {
+      listener(payload)
+    }
+    ipcRenderer.on(IpcChannels.uploadProgress, handler)
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.uploadProgress, handler)
+    }
+  },
+  openDocs: (slug) => ipcRenderer.invoke(IpcChannels.openDocs, slug)
 }
 
 contextBridge.exposeInMainWorld('recorderAPI', api)

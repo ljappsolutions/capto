@@ -1,0 +1,82 @@
+export const metadata = {
+  title: "Cloudflare R2 & S3-compatible setup",
+  description: "Use Cloudflare R2, Backblaze B2, MinIO or other S3-compatible storage with Capto.",
+  alternates: { canonical: "/docs/s3-compatible" },
+};
+
+# Cloudflare R2 & S3-compatible storage
+
+Capto's **S3-compatible** provider works with any service that speaks the S3 API: Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, MinIO and more. You supply a custom **endpoint** alongside the usual key, secret and bucket.
+
+**Why R2?** Cloudflare R2 charges nothing for egress (bandwidth out), and video sharing is mostly egress. For many people it's the cheapest option.
+
+## Cloudflare R2
+
+### 1. Create a bucket
+
+1. In the [Cloudflare dashboard](https://dash.cloudflare.com/), open **R2 Object Storage** and click **Create bucket**.
+2. Name it (for example `capto-shares`) and keep the default location.
+3. Do **not** enable public access or a custom public domain. Capto uses signed links.
+
+### 2. Create an API token
+
+1. In R2, click **Manage R2 API Tokens** → **Create API token**.
+2. Permissions: **Object Read & Write**.
+3. Scope: **Apply to specific buckets only**, and pick your bucket.
+4. Optionally set a TTL, then create the token.
+5. Copy the **Access Key ID** and **Secret Access Key** (S3 credentials), and note your **Account ID** from the R2 overview page.
+
+### 3. Configure Capto
+
+Open **Settings → Sharing** and choose **S3-compatible**:
+
+| Field | Value |
+| --- | --- |
+| Endpoint | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| Region | `auto` |
+| Bucket | Your bucket name |
+| Access key ID / Secret | From the API token |
+| Force path-style | Off (either works with R2) |
+| Folder prefix | `capto` (or anything you like) |
+
+Click **Test connection**.
+
+### Optional: auto-delete
+
+Bucket → **Settings** → **Object lifecycle rules** → **Add rule**. Set the prefix to `capto/` and **Delete objects** after N days.
+
+### Optional: CORS for captions
+
+Bucket → **Settings** → **CORS policy**:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://capto.ljappsolutions.com"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+## Backblaze B2
+
+1. Create a **private** bucket.
+2. Under **Application Keys**, add a key restricted to that bucket with **Read and Write** access, and optionally a file name prefix of `capto/`.
+3. In Capto use:
+   - **Endpoint:** the bucket's S3 endpoint shown on the bucket page, e.g. `https://s3.us-west-004.backblazeb2.com`
+   - **Region:** the region part of that endpoint, e.g. `us-west-004`
+   - **Access key ID:** the *keyID*; **Secret:** the *applicationKey*
+
+## MinIO (self-hosted)
+
+1. Create a bucket and a user (or access key) with a policy allowing `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` and `s3:AbortMultipartUpload` on `arn:aws:s3:::BUCKET/capto/*`.
+2. In Capto use your MinIO URL as the **Endpoint** (for example `https://minio.example.com`), region `us-east-1`, and turn **Force path-style** **on**. MinIO usually doesn't support virtual-hosted bucket URLs.
+3. The people you share with must be able to reach that endpoint. `localhost` links only work on your own machine.
+
+To try the S3-compatible flow locally without any account, see the S3Mock emulator in [Contributing](/docs/contributing).
+
+## Other providers
+
+Wasabi, DigitalOcean Spaces, Scaleway and others work the same way: find the provider's S3 endpoint and region, create a bucket-scoped key, and paste them in. Signed links on all S3-compatible services are capped at **7 days**.

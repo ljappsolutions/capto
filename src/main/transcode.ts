@@ -103,6 +103,10 @@ export async function convertWebmToMp4(
     String(crf),
     '-pix_fmt',
     'yuv420p',
+    // MediaRecorder WebM is variable-frame-rate with a 1 ms timebase; without
+    // this ffmpeg pads to a constant 1000 fps with duplicated frames.
+    '-fps_mode',
+    'vfr',
     '-movflags',
     '+faststart'
   ]
@@ -126,4 +130,31 @@ export async function convertWebmToMp4(
   }
 
   log.info('WebM → MP4 conversion complete', { outputPath })
+}
+
+/**
+ * Grab a single JPEG frame to use as a share-page poster.
+ * Seeks to `atMs` (clamped to the first second for very short clips).
+ */
+export async function extractPosterFrame(
+  inputPath: string,
+  outputPath: string,
+  atMs = 1000
+): Promise<void> {
+  const ffmpeg = resolveFfmpegBinary()
+  const seconds = Math.max(0, atMs / 1000).toFixed(2)
+  await runFfmpeg(ffmpeg, [
+    '-y',
+    '-ss',
+    seconds,
+    '-i',
+    inputPath,
+    '-frames:v',
+    '1',
+    '-vf',
+    "scale='min(1280,iw)':-2",
+    '-q:v',
+    '4',
+    outputPath
+  ])
 }

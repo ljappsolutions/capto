@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["--cwd", "website", "dev", "-p", "3917"],
+      "port": 3917
+    }
+  ]
+}

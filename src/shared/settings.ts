@@ -1,4 +1,6 @@
-import { DEFAULT_GLOBAL_SHORTCUT } from './constants'
+import { DEFAULT_CAMERA_OVERLAY, parseCameraOverlay } from './cameraOverlay'
+import { DEFAULT_GLOBAL_SHORTCUT, DEFAULT_MAX_RECORDING_MINUTES, MAX_RECORDING_MINUTES_LIMIT } from './constants'
+import { DEFAULT_SHARING, parseSharingSettings } from './sharing'
 import type { AppSettings } from './types'
 import { isVideoQuality } from './videoQuality'
 
@@ -10,10 +12,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultSystemAudioEnabled: true,
   recordingDirectory: null,
   globalShortcut: DEFAULT_GLOBAL_SHORTCUT,
-  cameraPosition: 'bottom-right',
+  cameraOverlay: { ...DEFAULT_CAMERA_OVERLAY },
+  cameraLayout: 'overlay',
   videoQuality: '1080p',
   systemVolume: 1,
-  micVolume: 1
+  micVolume: 1,
+  maxRecordingMinutes: DEFAULT_MAX_RECORDING_MINUTES,
+  sharing: structuredClone(DEFAULT_SHARING)
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -22,7 +27,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 export function parseSettings(raw: unknown): AppSettings {
   if (!isObject(raw)) {
-    return { ...DEFAULT_SETTINGS }
+    return structuredClone(DEFAULT_SETTINGS)
   }
 
   return {
@@ -52,13 +57,9 @@ export function parseSettings(raw: unknown): AppSettings {
       typeof raw.globalShortcut === 'string' && raw.globalShortcut.length > 0
         ? raw.globalShortcut
         : DEFAULT_SETTINGS.globalShortcut,
-    cameraPosition:
-      raw.cameraPosition === 'top-left' ||
-      raw.cameraPosition === 'top-right' ||
-      raw.cameraPosition === 'bottom-left' ||
-      raw.cameraPosition === 'bottom-right'
-        ? raw.cameraPosition
-        : DEFAULT_SETTINGS.cameraPosition,
+    // `cameraPosition` is the pre-0.2 corner setting; migrate it once.
+    cameraOverlay: parseCameraOverlay(raw.cameraOverlay, raw.cameraPosition),
+    cameraLayout: raw.cameraLayout === 'camera-only' ? 'camera-only' : 'overlay',
     videoQuality: isVideoQuality(raw.videoQuality)
       ? raw.videoQuality
       : DEFAULT_SETTINGS.videoQuality,
@@ -69,6 +70,11 @@ export function parseSettings(raw: unknown): AppSettings {
     micVolume:
       typeof raw.micVolume === 'number' && Number.isFinite(raw.micVolume)
         ? Math.min(2, Math.max(0, raw.micVolume))
-        : DEFAULT_SETTINGS.micVolume
+        : DEFAULT_SETTINGS.micVolume,
+    maxRecordingMinutes:
+      typeof raw.maxRecordingMinutes === 'number' && Number.isFinite(raw.maxRecordingMinutes)
+        ? Math.min(MAX_RECORDING_MINUTES_LIMIT, Math.max(0, Math.round(raw.maxRecordingMinutes)))
+        : DEFAULT_SETTINGS.maxRecordingMinutes,
+    sharing: parseSharingSettings(raw.sharing)
   }
 }

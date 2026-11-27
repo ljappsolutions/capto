@@ -1,0 +1,49 @@
+export const metadata = {
+  title: "Privacy & security",
+  description: "What Capto stores, where credentials live, and what leaves your Mac.",
+  alternates: { canonical: "/docs/privacy-security" },
+};
+
+# Privacy & security
+
+Capto is local-first. There is no Capto account, no Capto server and no analytics in the app.
+
+## What stays on your Mac
+
+- **Recordings** are written to `~/Movies/Capto/`.
+- **Settings** (provider, region, bucket, prefix, default expiry) live in `~/Library/Application Support/capto/settings.json`. No secrets are stored there.
+- **Credentials** (access keys, account keys, service-account JSON) are encrypted with Electron's `safeStorage`, whose encryption key is protected by the **macOS Keychain**, and saved to `~/Library/Application Support/capto/credentials.bin`.
+
+After you save credentials, the settings screen only shows a hint like `…AB12`. The app's UI process never receives the secret; uploads and signing happen in Capto's main process.
+
+## What leaves your Mac
+
+Only what you choose to share, and only to **your** provider:
+
+- The video file, poster image and (if present) captions, uploaded to your bucket over HTTPS.
+- Signing a link happens locally. No network request is needed to create it.
+
+Capto doesn't contact any Capto-operated service. Credentials are never sent anywhere except to your storage provider's API as part of signed requests.
+
+## The viewer page
+
+Viewer links look like `https://capto.ljappsolutions.com/v#…`. Everything after `#` stays in the viewer's browser: it is never sent to the website's server. The page decodes it locally and plays the video straight from your bucket. The viewer page:
+
+- has no analytics, cookies or tracking scripts;
+- sends no referrer (`Referrer-Policy: no-referrer`), so your bucket's logs don't learn the viewer page URL;
+- is excluded from search engines.
+
+Anyone who has the link can watch the video until it expires, so share it like you'd share a private document.
+
+## Good practice
+
+- Use a **dedicated bucket or prefix** and **least-privilege credentials** (each setup guide shows how).
+- Keep the bucket **private**. Capto never needs public access.
+- Use short expiry for sensitive videos, and **Delete from cloud** when you're done.
+- Add a **lifecycle rule** to auto-delete old shares.
+
+## Removing everything
+
+- **Settings → Sharing → Remove credentials** wipes `credentials.bin`.
+- Delete `~/Library/Application Support/capto/` to remove all settings.
+- Delete `~/Movies/Capto/` to remove recordings.

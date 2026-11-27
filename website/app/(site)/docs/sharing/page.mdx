@@ -1,0 +1,89 @@
+export const metadata = {
+  title: "How sharing works",
+  description: "How Capto share links work: uploads, signed URLs, the viewer link format, expiry limits per provider, and revocation.",
+  alternates: { canonical: "/docs/sharing" },
+};
+
+# How sharing works
+
+Capto never hosts your videos. It uploads them to a **private** bucket you control and hands out **signed URLs**: links that carry a cryptographic signature and an expiry time, so anyone with the link can watch until it expires, and nobody else can list or read your bucket.
+
+## What happens when you share
+
+1. Capto uploads the MP4 (and a poster image) to your bucket under your folder prefix, for example `capto/2026/11/<recording-id>/recording.mp4`.
+2. Capto signs a read-only URL for the video with your credentials. The signing happens on your Mac; no request goes to Capto.
+3. Capto copies a link to your clipboard: either a **viewer page** link or the **direct file link** (the raw signed URL). You choose which in **Settings → Sharing → Link type**.
+
+## Viewer page vs. raw link
+
+| | Viewer page (default) | Direct file link |
+| --- | --- | --- |
+| Looks like | `https://capto.ljappsolutions.com/v#eyJ2Ijox…` | `https://your-bucket.s3.amazonaws.com/capto/…?X-Amz-Signature=…` |
+| Experience | Clean player with title, expiry notice, playback speed and a Download button | The browser's bare video tab, or a download prompt |
+| Who sees the video URL | Only the viewer's browser | Only the viewer's browser |
+
+The viewer page is a static page. The signed video URL lives in the part of the link after `#` (the *fragment*). **Browsers never send the fragment to a server**, so this website never sees your video URLs, titles or expiry dates. The page decodes the fragment in the browser and plays the video straight from your bucket. It has no analytics and sends no referrer.
+
+Trade-offs: viewer links are long, and chat apps can't show a preview card because no server can read the fragment.
+
+**Forks and self-hosting:** set **Settings → Sharing → Advanced → Viewer base URL** to your own deployment of this site. See [Self-host the viewer](/docs/self-hosting).
+
+## The link format
+
+The fragment is a base64url-encoded JSON object, defined in `src/shared/shareLink.ts` (with a verbatim copy in `website/lib/shareLink.ts`):
+
+```json
+{
+  "v": 1,
+  "u": "https://your-bucket.s3.us-east-1.amazonaws.com/capto/2026/11/rec-1a2b/Onboarding.mp4?X-Amz-Signature=…",
+  "p": "https://your-bucket.s3.us-east-1.amazonaws.com/capto/2026/11/rec-1a2b/poster.jpg?X-Amz-Signature=…",
+  "t": "Onboarding walkthrough",
+  "e": "2026-12-03T23:31:23.000Z",
+  "d": 184000
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `v` | Payload version. Decoders reject versions they don't know |
+| `u` | Signed video URL (required, must be `http(s)`) |
+| `p` | Signed poster image URL |
+| `c` | Signed captions URL (reserved) |
+| `t` | Title shown on the page (truncated to 200 characters) |
+| `e` | Link expiry, ISO 8601. The viewer shows "expires in…" and an expired notice |
+| `d` | Duration in milliseconds |
+
+You can paste any Capto link into the decoder on the [home page](/#link-format) to see what it carries. Decoding happens in your browser.
+
+## Expiry limits
+
+Each provider limits how long a signed URL can live. Capto clamps the expiry picker to these limits.
+
+| Provider | Maximum link lifetime |
+| --- | --- |
+| AWS S3 | 7 days (SigV4 limit) |
+| S3-compatible (R2, B2, MinIO…) | 7 days |
+| Google Cloud Storage | 7 days (V4 signed URL limit) |
+| Azure Blob Storage | Configurable in the app, up to 30 days |
+
+**AWS caveat:** a presigned URL is only valid while the credentials that signed it are valid. Long-term IAM user keys allow the full 7 days. Temporary credentials (SSO, assumed roles, STS) make the link die when that session expires, often within hours. Use an IAM user's access key for sharing.
+
+Need the video for longer? Use **New link** (or **Renew link** once it has expired) on the recording to sign a fresh URL without uploading again.
+
+## Revoking a link
+
+A signed URL can't be "un-signed". To stop a link working before it expires, **delete the file from your bucket**: use **Delete from cloud** in Capto, or delete the object in your provider's console. The link fails immediately.
+
+As a last resort you can rotate the credentials that signed the link (deactivate the IAM access key, rotate the Azure account key, delete the GCS service-account key). That invalidates **every** link signed with them.
+
+## Automatic cleanup
+
+To keep storage costs down, add a lifecycle rule that deletes objects under your Capto prefix after N days. Each setup guide shows how: [S3](/docs/aws-s3#optional-auto-delete-old-recordings), [R2](/docs/s3-compatible#optional-auto-delete), [Azure](/docs/azure#optional-auto-delete), [GCS](/docs/gcs#optional-auto-delete).
+
+## Captions and CORS
+
+Video playback does not need CORS. If a recording includes a captions file, the viewer fetches it from your bucket, which **does** require a CORS rule allowing `GET` from the viewer's origin (for example `https://capto.ljappsolutions.com`). Without it, the video still plays; captions are skipped.
+
+## Costs
+
+You pay your provider for storage and outbound bandwidth (egress). Video is egress-heavy, so Cloudflare R2, which has no egress fees, is often the cheapest choice for sharing.

@@ -119,29 +119,6 @@
   font-size: 14px;
 }
 
-.camera-preview {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid var(--border);
-  background: var(--bg-muted);
-  justify-self: end;
-}
-
-.camera-preview video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.camera-preview--off {
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
 .picker__permissions h2 {
   margin: 0 0 8px;
   font-size: 14px;
@@ -180,4 +157,143 @@
   .picker__options-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Segmented buttons (shared by camera editor) */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.seg__btn {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.seg__btn + .seg__btn {
+  border-left: 1px solid var(--border);
+}
+
+.seg__btn.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.seg__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Camera overlay editor */
+.cam-editor {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.cam-editor__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cam-editor__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cam-editor__stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--bg-muted);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--border);
+  user-select: none;
+  touch-action: none;
+}
+
+.cam-editor__hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.cam-editor__full {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cam-bubble {
+  position: absolute;
+  cursor: grab;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  background: #000;
+}
+
+.cam-bubble:active {
+  cursor: grabbing;
+}
+
+.cam-bubble video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.cam-bubble--subtle {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+}
+
+.cam-bubble--accent {
+  outline: 3px solid rgba(124, 137, 255, 0.95);
+}
+
+.cam-bubble--subtle,
+.cam-bubble--accent {
+  outline-offset: -2px;
+}
+
+.cam-bubble__handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+}
+
+.cam-editor__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cam-editor__select {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
 }

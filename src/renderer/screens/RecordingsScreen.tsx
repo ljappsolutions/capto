@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatBytes, formatDuration } from '@shared/format'
+import { formatExpiry, shareStatus, latestShare } from '@shared/sharing'
 import type { RecordingListItem } from '@shared/types'
+import { SharePanel } from '../components/SharePanel'
+import { useCredentialsReady } from '../hooks/useCredentialsReady'
+import { useSettings } from '../hooks/useSettings'
 import '../styles/recordings.css'
 
 export function RecordingsScreen() {
   const [items, setItems] = useState<RecordingListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const { settings } = useSettings()
+  const credentialsReady = useCredentialsReady(settings?.sharing.provider ?? null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -44,12 +51,21 @@ export function RecordingsScreen() {
       ) : null}
 
       <div className="recordings__list">
-        {items.map(({ metadata }) => (
+        {items.map(({ metadata }) => {
+          const status = shareStatus(metadata.shares)
+          const last = latestShare(metadata.shares)
+          return (
           <article key={metadata.id} className="recording-item panel">
             <div>
               <h2>
                 {metadata.filename}
                 {metadata.recovered ? <span className="badge">Recovered</span> : null}
+                {status === 'active' && last ? (
+                  <span className="badge badge--shared" title={formatExpiry(last.expiresAt)}>
+                    Shared · {formatExpiry(last.expiresAt).replace('Expires in ', '')}
+                  </span>
+                ) : null}
+                {status === 'expired' ? <span className="badge badge--expired">Link expired</span> : null}
               </h2>
               <p className="muted">
                 {new Date(metadata.createdAt).toLocaleString()} ·{' '}
@@ -58,6 +74,13 @@ export function RecordingsScreen() {
               <p className="muted">{metadata.captureSourceName}</p>
             </div>
             <div className="row">
+              <button
+                type="button"
+                className={sharingId === metadata.id ? 'btn btn-primary' : 'btn'}
+                onClick={() => setSharingId(sharingId === metadata.id ? null : metadata.id)}
+              >
+                Share
+              </button>
               <button
                 type="button"
                 className="btn"
@@ -84,8 +107,20 @@ export function RecordingsScreen() {
                 Delete
               </button>
             </div>
+            {sharingId === metadata.id ? (
+              <div className="recording-item__share">
+                <SharePanel
+                  meta={metadata}
+                  settings={settings}
+                  credentialsReady={credentialsReady}
+                  compact
+                  onChanged={() => void refresh()}
+                />
+              </div>
+            ) : null}
           </article>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

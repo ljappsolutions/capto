@@ -1,0 +1,46 @@
+import { siteConfig } from "@/lib/site";
+
+export const metadata = {
+  title: "Self-host the viewer",
+  description: "Run the Capto share viewer on your own domain, or skip it and share raw signed URLs.",
+  alternates: { canonical: "/docs/self-hosting" },
+};
+
+# Self-host the viewer
+
+By default, Capto's share links point at the viewer on `capto.ljappsolutions.com`. The viewer is a static page that decodes the URL fragment in the browser and plays the video straight from your bucket, so the host never sees your links. Even so, you might want links on your own domain, a branded page, or no third-party dependency at all.
+
+## Option 1: share raw signed URLs
+
+In Capto, set **Settings → Sharing → Link type** to **Direct file link**. The copied link is then the provider's signed URL itself. Nothing else is involved, but the viewer gets the browser's bare video player.
+
+## Option 2: deploy the website
+
+The viewer is the `/v` route of this site, in `website/` in the repo.
+
+<pre><code>{`git clone ${siteConfig.cloneUrl}
+cd capto/website
+yarn install
+yarn build && yarn start   # or deploy anywhere Next.js runs`}</code></pre>
+
+To deploy to AWS like the reference site, the repo includes an SST config:
+
+```bash
+yarn deploy   # sst deploy --stage production
+```
+
+Configure it through `website/.env` (copy `.env.example`): set `AWS_PROFILE`, plus `CAPTO_SITE_DOMAIN` and `CAPTO_SITE_CERT_ARN` (an ACM certificate in us-east-1) if you want a custom domain. Without a domain, the site deploys to its CloudFront URL. It also runs unchanged on any other Next.js host.
+
+Then point Capto at it: **Settings → Sharing → Advanced → Viewer base URL**, for example `https://videos.example.com`. New links use your domain. Links you already sent keep working at the old URL until they expire.
+
+## What the viewer needs
+
+- **No backend, no environment secrets.** `NEXT_PUBLIC_GITHUB_REPO` is optional and only affects GitHub links.
+- **Keep the headers** that `next.config.ts` sets on `/v`: `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`. They stop signed URLs leaking through the referrer and keep viewer pages out of search engines.
+- **No CORS for video.** A `<video>` element doesn't need CORS. Only captions, which are fetched with JavaScript, need a CORS rule on the bucket allowing `GET` from your viewer's origin.
+
+## Stripping it down
+
+Only want the viewer? `app/v/`, `components/viewer/` and `lib/shareLink.ts` are self-contained. You can lift them into an existing Next.js app, or port the decode logic (about 30 lines) to any framework.
+
+If you change the payload format, update `src/shared/shareLink.ts` in the app and `website/lib/shareLink.ts` together, and bump the version field `v`.

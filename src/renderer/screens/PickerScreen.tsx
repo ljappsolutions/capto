@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { VideoQuality } from '@shared/types'
-import { CameraPreview } from '../components/CameraPreview'
+import { DEFAULT_CAMERA_OVERLAY } from '@shared/cameraOverlay'
+import type { CameraLayout, CameraOverlay, VideoQuality } from '@shared/types'
+import { CameraOverlayEditor } from '../components/CameraOverlayEditor'
 import { PermissionRow } from '../components/PermissionRow'
 import { SourceCard } from '../components/SourceCard'
 import { useCaptureSources } from '../hooks/useCaptureSources'
@@ -29,6 +30,8 @@ export function PickerScreen() {
   const [systemAudioEnabled, setSystemAudioEnabled] = useState(true)
   const [microphoneEnabled, setMicrophoneEnabled] = useState(true)
   const [videoQuality, setVideoQuality] = useState<VideoQuality>('1080p')
+  const [cameraOverlay, setCameraOverlay] = useState<CameraOverlay>(DEFAULT_CAMERA_OVERLAY)
+  const [cameraLayout, setCameraLayout] = useState<CameraLayout>('overlay')
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -39,7 +42,11 @@ export function PickerScreen() {
     setCameraEnabled(settings.defaultCameraEnabled)
     setSystemAudioEnabled(settings.defaultSystemAudioEnabled)
     setVideoQuality(settings.videoQuality)
-  }, [settings])
+    setCameraOverlay(settings.cameraOverlay)
+    setCameraLayout(settings.cameraLayout)
+    // Only seed local state from the first settings load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings === null])
 
   const list = tab === 'screens' ? grouped.screens : grouped.windows
 
@@ -65,7 +72,9 @@ export function PickerScreen() {
         defaultCameraId: cameraId,
         defaultCameraEnabled: cameraEnabled,
         defaultSystemAudioEnabled: systemAudioEnabled,
-        videoQuality
+        videoQuality,
+        cameraOverlay,
+        cameraLayout
       })
 
       await prepare({
@@ -77,10 +86,12 @@ export function PickerScreen() {
         cameraEnabled,
         cameraDeviceId: cameraId,
         systemAudioEnabled,
-        cameraPosition: settings.cameraPosition,
+        cameraOverlay,
+        cameraLayout: cameraEnabled ? cameraLayout : 'overlay',
         systemVolume: settings.systemVolume,
         micVolume: settings.micVolume,
-        videoQuality
+        videoQuality,
+        maxDurationMs: settings.maxRecordingMinutes * 60_000
       })
       await start()
     } catch (err) {
@@ -155,6 +166,7 @@ export function PickerScreen() {
                 }}
               >
                 <option value="off">Off</option>
+                <option value="">System default</option>
                 {mics.map((mic) => (
                   <option key={mic.deviceId} value={mic.deviceId}>
                     {mic.label}
@@ -179,6 +191,7 @@ export function PickerScreen() {
               }}
             >
               <option value="off">Off</option>
+              <option value="">System default</option>
               {cameras.map((cam) => (
                 <option key={cam.deviceId} value={cam.deviceId}>
                   {cam.label}
@@ -213,8 +226,20 @@ export function PickerScreen() {
             </select>
           </div>
 
-          <CameraPreview deviceId={cameraId} enabled={cameraEnabled} />
         </div>
+        <CameraOverlayEditor
+          deviceId={cameraId}
+          enabled={cameraEnabled}
+          overlay={cameraOverlay}
+          layout={cameraLayout}
+          backgroundUrl={selected?.thumbnailDataUrl}
+          onChange={setCameraOverlay}
+          onCommit={(next) => void update({ cameraOverlay: next })}
+          onLayoutChange={(next) => {
+            setCameraLayout(next)
+            void update({ cameraLayout: next })
+          }}
+        />
       </section>
 
       <section className="picker__permissions panel">

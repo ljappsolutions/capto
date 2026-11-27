@@ -7,7 +7,7 @@ import type {
 
 export type RecorderEventMap = {
   state: RecordingState
-  progress: { elapsedMs: number; remainingMs: number }
+  progress: { elapsedMs: number; remainingMs: number | null }
   error: AppError
   completed: RecordingResult
 }

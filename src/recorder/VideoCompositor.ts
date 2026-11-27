@@ -1,6 +1,13 @@
+import {
+  clampCenter,
+  computeBubbleRect,
+  cornerCenter,
+  DEFAULT_CAMERA_OVERLAY,
+  parseCameraOverlay
+} from '@shared/cameraOverlay'
 import { scaleToMaxOutput } from '@shared/dimensions'
 import { TARGET_FPS } from '@shared/constants'
-import type { CameraPosition } from '@shared/types'
+import type { CameraLayout, CameraOverlay, CameraPosition } from '@shared/types'
 import { stopStream } from './MediaDevices'
 
 export class VideoCompositor {
@@ -9,7 +16,8 @@ export class VideoCompositor {
   private desktopVideo: HTMLVideoElement | null = null
   private cameraVideo: HTMLVideoElement | null = null
   private cameraEnabled = false
-  private cameraPosition: CameraPosition = 'bottom-right'
+  private overlay: CameraOverlay = { ...DEFAULT_CAMERA_OVERLAY }
+  private layout: CameraLayout = 'overlay'
   private loopTimer: number | null = null
   private outputStream: MediaStream | null = null
   private width = 1280
@@ -19,7 +27,8 @@ export class VideoCompositor {
     desktopStream: MediaStream
     cameraStream: MediaStream | null
     cameraEnabled: boolean
-    cameraPosition: CameraPosition
+    cameraOverlay: CameraOverlay
+    cameraLayout: CameraLayout
     maxWidth?: number
     maxHeight?: number
   }): Promise<MediaStream> {
@@ -37,7 +46,8 @@ export class VideoCompositor {
     this.width = scaled.width
     this.height = scaled.height
     this.cameraEnabled = options.cameraEnabled && Boolean(options.cameraStream)
-    this.cameraPosition = options.cameraPosition
+    this.overlay = parseCameraOverlay(options.cameraOverlay)
+    this.layout = options.cameraLayout
 
     this.canvas = document.createElement('canvas')
     this.canvas.width = this.width
@@ -77,8 +87,33 @@ export class VideoCompositor {
     this.cameraEnabled = enabled && Boolean(this.cameraVideo)
   }
 
-  setCameraPosition(position: CameraPosition): void {
-    this.cameraPosition = position
+  setOverlay(overlay: CameraOverlay): void {
+    this.overlay = parseCameraOverlay(overlay)
+  }
+
+  moveToCorner(corner: CameraPosition): void {
+    this.overlay = {
+      ...this.overlay,
+      ...cornerCenter(corner, this.overlay.size, this.width, this.height)
+    }
+  }
+
+  /** Resize while keeping the bubble anchored inside the frame. */
+  setSize(size: number): void {
+    const next = parseCameraOverlay({ ...this.overlay, size })
+    this.overlay = { ...next, ...clampCenter(next, this.width, this.height) }
+  }
+
+  getOverlay(): CameraOverlay {
+    return { ...this.overlay }
+  }
+
+  getLayout(): CameraLayout {
+    return this.layout
+  }
+
+  setLayout(layout: CameraLayout): void {
+    this.layout = layout
   }
 
   getOutputStream(): MediaStream | null {
@@ -107,64 +142,104 @@ export class VideoCompositor {
     }
   }
 
+  private cameraReady(): boolean {
+    return Boolean(this.cameraEnabled && this.cameraVideo && this.cameraVideo.readyState >= 2)
+  }
+
   private drawFrame(): void {
     if (!this.ctx || !this.canvas || !this.desktopVideo) return
 
     this.ctx.fillStyle = '#000'
     this.ctx.fillRect(0, 0, this.width, this.height)
 
+    if (this.layout === 'camera-only' && this.cameraReady()) {
+      this.drawVideoCover(this.cameraVideo!, 0, 0, this.width, this.height, this.overlay.mirror)
+      return
+    }
+
     if (this.desktopVideo.readyState >= 2) {
       this.ctx.drawImage(this.desktopVideo, 0, 0, this.width, this.height)
     }
 
-    if (this.cameraEnabled && this.cameraVideo && this.cameraVideo.readyState >= 2) {
+    if (this.cameraReady()) {
       this.drawCameraBubble()
     }
+  }
+
+  /** Draw `video` scaled to cover the target box (center crop), optionally mirrored. */
+  private drawVideoCover(
+    video: HTMLVideoElement,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    mirror: boolean
+  ): void {
+    const ctx = this.ctx
+    if (!ctx) return
+    const vw = video.videoWidth || 640
+    const vh = video.videoHeight || 480
+    const scale = Math.max(w / vw, h / vh)
+    const dw = vw * scale
+    const dh = vh * scale
+    const dx = x + (w - dw) / 2
+    const dy = y + (h - dh) / 2
+    ctx.save()
+    if (mirror) {
+      // Flip around the box's vertical center line.
+      ctx.translate(x * 2 + w, 0)
+      ctx.scale(-1, 1)
+    }
+    ctx.drawImage(video, dx, dy, dw, dh)
+    ctx.restore()
+  }
+
+  private bubblePath(left: number, top: number, side: number, radius: number): void {
+    const ctx = this.ctx!
+    ctx.beginPath()
+    if (radius >= side / 2) {
+      ctx.arc(left + side / 2, top + side / 2, side / 2, 0, Math.PI * 2)
+    } else if (radius > 0 && typeof ctx.roundRect === 'function') {
+      ctx.roundRect(left, top, side, side, radius)
+    } else {
+      ctx.rect(left, top, side, side)
+    }
+    ctx.closePath()
   }
 
   private drawCameraBubble(): void {
     if (!this.ctx || !this.cameraVideo) return
 
-    const padding = Math.round(Math.min(this.width, this.height) * 0.03)
-    const diameter = Math.round(Math.min(this.width, this.height) * 0.22)
-    const radius = diameter / 2
+    const { left, top, side, cornerRadius } = computeBubbleRect(
+      this.overlay,
+      this.width,
+      this.height
+    )
 
-    let cx = padding + radius
-    let cy = padding + radius
-
-    if (this.cameraPosition === 'top-right' || this.cameraPosition === 'bottom-right') {
-      cx = this.width - padding - radius
-    }
-    if (this.cameraPosition === 'bottom-left' || this.cameraPosition === 'bottom-right') {
-      cy = this.height - padding - radius
-    }
-
-    const video = this.cameraVideo
-    const vw = video.videoWidth || 640
-    const vh = video.videoHeight || 480
-    const scale = Math.max(diameter / vw, diameter / vh)
-    const dw = vw * scale
-    const dh = vh * scale
-    const dx = cx - dw / 2
-    const dy = cy - dh / 2
-
+    // Soft drop shadow under the bubble.
     this.ctx.save()
-    this.ctx.beginPath()
-    this.ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-    this.ctx.closePath()
-    this.ctx.clip()
-    this.ctx.drawImage(video, dx, dy, dw, dh)
-    this.ctx.restore()
-
-    this.ctx.save()
-    this.ctx.beginPath()
-    this.ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-    this.ctx.strokeStyle = 'rgba(255,255,255,0.55)'
-    this.ctx.lineWidth = Math.max(2, diameter * 0.02)
+    this.bubblePath(left, top, side, cornerRadius)
     this.ctx.shadowColor = 'rgba(0,0,0,0.35)'
-    this.ctx.shadowBlur = 8
-    this.ctx.stroke()
+    this.ctx.shadowBlur = Math.max(6, side * 0.05)
+    this.ctx.fillStyle = '#000'
+    this.ctx.fill()
     this.ctx.restore()
+
+    this.ctx.save()
+    this.bubblePath(left, top, side, cornerRadius)
+    this.ctx.clip()
+    this.drawVideoCover(this.cameraVideo, left, top, side, side, this.overlay.mirror)
+    this.ctx.restore()
+
+    if (this.overlay.border !== 'none') {
+      this.ctx.save()
+      this.bubblePath(left, top, side, cornerRadius)
+      this.ctx.strokeStyle =
+        this.overlay.border === 'accent' ? 'rgba(124,137,255,0.95)' : 'rgba(255,255,255,0.55)'
+      this.ctx.lineWidth = Math.max(2, side * (this.overlay.border === 'accent' ? 0.03 : 0.02))
+      this.ctx.stroke()
+      this.ctx.restore()
+    }
   }
 
   async dispose(): Promise<void> {

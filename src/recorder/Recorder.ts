@@ -1,14 +1,21 @@
 import {
   AUDIO_BITRATE,
   COUNTDOWN_SECONDS,
-  MAX_RECORDING_DURATION_MS,
   MEDIA_RECORDER_TIMESLICE_MS,
   MIME_CANDIDATES,
   TARGET_FPS,
   VIDEO_BITRATE
 } from '@shared/constants'
 import { getOutputLimits } from '@shared/videoQuality'
-import type { AppError, RecordingMetadata, RecordingOptions, RecordingState } from '@shared/types'
+import type {
+  AppError,
+  CameraLayout,
+  CameraOverlay,
+  CameraPosition,
+  RecordingMetadata,
+  RecordingOptions,
+  RecordingState
+} from '@shared/types'
 import { AudioMixer } from './AudioMixer'
 import { getCameraStream, getMicrophoneStream, stopStream } from './MediaDevices'
 import type { RecorderEventMap, RecorderListener } from './types'
@@ -48,7 +55,7 @@ export class Recorder {
   private accumulatedMs = 0
   private tickTimer: number | null = null
   private countdownTimer: number | null = null
-  private autoStopTimer: number | null = null
+  private maxDurationMs = 0
   private microphoneEnabled = true
   private cameraEnabled = false
   private systemAudioEnabled = true
@@ -104,6 +111,7 @@ export class Recorder {
     this.recordingId = makeId()
     this.sequence = 0
     this.accumulatedMs = 0
+    this.maxDurationMs = Math.max(0, options.maxDurationMs || 0)
 
     try {
       await window.recorderAPI.setSelectedCaptureSource(
@@ -189,7 +197,8 @@ export class Recorder {
         desktopStream: this.desktopStream,
         cameraStream: this.cameraStream,
         cameraEnabled: this.cameraEnabled,
-        cameraPosition: options.cameraPosition,
+        cameraOverlay: options.cameraOverlay,
+        cameraLayout: options.cameraLayout,
         maxWidth: limits.width,
         maxHeight: limits.height
       })
@@ -305,9 +314,6 @@ export class Recorder {
     this.startedAt = Date.now()
     this.setState('recording')
     this.startTick()
-    this.autoStopTimer = window.setTimeout(() => {
-      void this.stop().catch(() => undefined)
-    }, MAX_RECORDING_DURATION_MS)
   }
 
   pause(): void {
@@ -335,6 +341,8 @@ export class Recorder {
     }
 
     const previousState = this.state
+    // Read before leaving 'recording', or the in-progress segment is lost.
+    const elapsed = this.getElapsedMs()
     this.setState('stopping')
     this.clearTimers()
 
@@ -344,8 +352,6 @@ export class Recorder {
       this.setState('idle')
       throw this.appError('UNKNOWN', 'Recording was cancelled before it started.')
     }
-
-    const elapsed = this.getElapsedMs()
 
     const stopped = new Promise<void>((resolve) => {
       if (!this.mediaRecorder) {
@@ -414,6 +420,36 @@ export class Recorder {
     this.mixer.setSystemVolume(this.systemAudioEnabled ? volume : 0)
   }
 
+  setCameraOverlay(overlay: CameraOverlay): void {
+    this.compositor.setOverlay(overlay)
+  }
+
+  setCameraLayout(layout: CameraLayout): void {
+    this.compositor.setLayout(layout)
+  }
+
+  moveCameraToCorner(corner: CameraPosition): void {
+    this.compositor.moveToCorner(corner)
+  }
+
+  setCameraSize(size: number): void {
+    this.compositor.setSize(size)
+  }
+
+  getCameraLayout(): CameraLayout {
+    return this.compositor.getLayout()
+  }
+
+  getCameraOverlay(): CameraOverlay | null {
+    return this.compositor.getOverlay()
+  }
+
+  /** Remaining time under the configured limit, or null when unlimited. */
+  getRemainingMs(): number | null {
+    if (this.maxDurationMs <= 0) return null
+    return Math.max(0, this.maxDurationMs - this.getElapsedMs())
+  }
+
   isMicrophoneEnabled(): boolean {
     return this.microphoneEnabled
   }
@@ -441,9 +477,9 @@ export class Recorder {
     this.clearTick()
     this.tickTimer = window.setInterval(() => {
       const elapsedMs = this.getElapsedMs()
-      const remainingMs = Math.max(0, MAX_RECORDING_DURATION_MS - elapsedMs)
+      const remainingMs = this.getRemainingMs()
       this.emit('progress', { elapsedMs, remainingMs })
-      if (remainingMs <= 0 && this.state === 'recording') {
+      if (remainingMs !== null && remainingMs <= 0 && this.state === 'recording') {
         void this.stop().catch(() => undefined)
       }
     }, 250)
@@ -461,10 +497,6 @@ export class Recorder {
     if (this.countdownTimer !== null) {
       clearInterval(this.countdownTimer)
       this.countdownTimer = null
-    }
-    if (this.autoStopTimer !== null) {
-      clearTimeout(this.autoStopTimer)
-      this.autoStopTimer = null
     }
   }
 

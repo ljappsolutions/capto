@@ -1,0 +1,69 @@
+export const metadata = {
+  title: "Troubleshooting",
+  description: "Fix build problems, macOS permission issues, the Electron name in development, upload errors and playback problems.",
+  alternates: { canonical: "/docs/troubleshooting" },
+};
+
+# Troubleshooting
+
+## Build problems
+
+| Symptom | Fix |
+| --- | --- |
+| `yarn install` fails building native modules | Install the Xcode Command Line Tools (`xcode-select --install`) and make sure you're on Node.js 22+ |
+| electron-builder fails while signing | Build ad-hoc: `CSC_IDENTITY_AUTO_DISCOVERY=false yarn package:dir` |
+| "Another Capto instance is running" | Quit the other copy from its menu bar icon (or `pkill -x Capto`), then start again |
+| Main-process change has no effect | `yarn dev` only hot-reloads the UI. Stop it and start it again |
+
+## Camera is denied without a prompt (dev mode)
+
+macOS checks camera access against the app that launched Electron (your terminal, IDE or coding tool). If that app can't ask for the camera, macOS denies access silently. Run `yarn dev` from Terminal.app, or use the Launch Services command in [Build from source](/docs/build#running-dev-builds-from-an-editor-or-ai-coding-tool).
+
+## Capto isn't in the Screen Recording list
+
+macOS only adds an app to **Screen & System Audio Recording** after it **tries** to capture. Open the recording picker (or click **Open System Settings** in Capto's permission screen), then look again.
+
+After enabling the toggle, **quit and reopen Capto**. macOS only applies screen-recording permission at launch.
+
+## Permission granted, but recordings are black or the picker is empty
+
+- Make sure you enabled the entry that matches the app you launched: **Capto** for the packaged app, **Electron** if you're running from source.
+- Every ad-hoc rebuild has a new code signature, so macOS may treat it as a new app. Remove the old entry with **−**, then grant again.
+- Last resort, reset the permission and start over:
+
+```bash
+tccutil reset ScreenCapture app.capto.desktop
+```
+
+## It says "Electron" instead of "Capto"
+
+That's expected with `yarn dev`: macOS sees the Electron binary from `node_modules`. Permissions, Activity Monitor and the menu bar all show **Electron**. Package the app (`yarn package:dir`) to see **Capto** with its own bundle ID (`app.capto.desktop`).
+
+## No system audio
+
+System audio capture needs **macOS 14.2 or later** and the Screen & System Audio Recording permission. Check the **System audio** toggle in the picker, and make sure the sound is actually playing through your Mac's output.
+
+## Microphone or camera doesn't work
+
+Grant access in **System Settings → Privacy & Security → Microphone / Camera**. If the camera is busy, close other apps using it.
+
+## Upload or "Test connection" fails
+
+| Error | Likely cause |
+| --- | --- |
+| AccessDenied / 403 | The folder prefix in Capto doesn't match the one in your IAM policy or token scope |
+| Wrong region / redirect | The region in Capto doesn't match the bucket |
+| SignatureDoesNotMatch | Secret pasted with extra spaces, or your Mac's clock is off |
+| Could not connect | Wrong endpoint (S3-compatible / Azure), or a firewall/VPN blocks it |
+| NoSuchBucket | Typo in the bucket or container name |
+
+## The share link doesn't play
+
+- **"This link has expired":** the signed URL is past its expiry. Use **Renew link** in Capto and send the new link.
+- **"The video couldn't be loaded":** the file was deleted, the link expired, or the credentials that signed it were revoked. With AWS temporary credentials (SSO/STS), links stop working when the session ends.
+- **Link looks cut off:** some email clients and chat apps wrap or truncate long URLs. Copy the full link, or switch **Settings → Sharing → Link type** to **Direct file link**.
+- **Captions missing:** captions need a CORS rule on the bucket. See [How sharing works](/docs/sharing#captions-and-cors).
+
+## Still stuck?
+
+Search or open an issue on GitHub with your macOS version, the commit you built from (`git rev-parse --short HEAD`) and the error message. Never paste your keys.

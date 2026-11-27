@@ -1,0 +1,86 @@
+import { siteConfig } from "@/lib/site";
+
+export const metadata = {
+  title: "Architecture",
+  description: "How Capto is structured: Electron processes, the recording pipeline, storage providers, the share-link contract and files on disk.",
+  alternates: { canonical: "/docs/architecture" },
+};
+
+# Architecture
+
+Capto is one Electron app in TypeScript: Node.js in the main process and React in sandboxed windows. This website is a separate Next.js project in `website/`. The same overview lives in <a href={siteConfig.architecture}>docs/ARCHITECTURE.md</a> in the repo.
+
+## Layers
+
+| Layer | Path | Responsibility |
+| --- | --- | --- |
+| Main process | `src/main` | Lifecycle, tray, windows, permissions, capture sources, recording files, settings, encrypted credentials, uploads and share links |
+| Preload | `src/preload` | Exposes a small typed `window.recorderAPI` through `contextBridge` |
+| Renderer | `src/renderer` | React screens: picker, controls bar, countdown, exporting, complete, recordings, settings |
+| Recorder | `src/recorder` | The recording engine, running inside the picker window: `Recorder`, `VideoCompositor`, `AudioMixer`, `MediaDevices` |
+| Shared | `src/shared` | Pure, unit-tested code: IPC contracts, types, settings parsing, camera geometry, sharing config, the share-link format |
+
+**Security baseline:**
+- Every window runs with `contextIsolation: true`, `nodeIntegration: false` and `sandbox: true`.
+- The renderer never gets `ipcRenderer`.
+- Channels are named `capto:*` and declared in `src/shared/ipc.ts`.
+- Handlers in `src/main/ipc.ts` validate every argument.
+
+## Main process modules
+
+| File | What it does |
+| --- | --- |
+| `index.ts`, `app.ts`, `lifecycle.ts` | Startup, single-instance lock, quit handling, launch at login |
+| `tray.ts`, `shortcuts.ts` | Menu bar icon and the global shortcut |
+| `windows.ts` | Creates and positions every window, and parks the recording host during a recording |
+| `capture.ts` | Lists screens and windows (leaving out Capto's own), and answers `getDisplayMedia` with the chosen source plus loopback audio |
+| `permissions.ts` | Screen, microphone, camera and system-audio permission status and prompts |
+| `recordings.ts` | Appends chunks to `.partial.webm`, finalizes, lists, renames and deletes recordings, and recovers interrupted ones |
+| `transcode.ts` | WebM → MP4 (H.264/AAC) and poster frames with the bundled `ffmpeg-static` |
+| `settings.ts` | Loads and saves `settings.json` through the shared parser, migrating older formats |
+| `credentials.ts` | Cloud credentials encrypted with `safeStorage` (Keychain) in `credentials.bin`, mode 0600 |
+| `sharing.ts` | Upload with progress, sign, record shares in metadata, clipboard, test connection, revoke |
+| `storage/` | `s3.ts`, `azure.ts`, `gcs.ts` behind one `StorageProvider` interface |
+
+## The recording pipeline
+
+1. **Picker.** The picker window lists sources and devices and hosts the camera-bubble editor (`CameraOverlayEditor.tsx`).
+2. **Prepare.** `Recorder` calls `getDisplayMedia`, which the main process answers with the selected source, and `getUserMedia` for the microphone and camera.
+3. **Composite.** `VideoCompositor` draws the screen and the bubble onto a canvas at 30 fps: shape clip, border, shadow, mirroring, and the camera-only layout. `AudioMixer` mixes the microphone and system audio with Web Audio.
+4. **Record.** `MediaRecorder` encodes `canvas.captureStream()` and the mixed audio as WebM. It sends a chunk every second over IPC, and the main process appends it to disk.
+5. **Control.** The floating controls window sends commands to the picker over IPC: pause, stop, toggle the mic or camera, set the bubble size or corner, and camera-only.
+6. **Finish.** On stop, ffmpeg converts the WebM to an MP4 with `-fps_mode vfr` to keep the real frame timing. Metadata is written to `metadata/<id>.json`.
+
+**Why the picker is parked instead of hidden.** Chromium stops producing `canvas.captureStream` frames for hidden windows. During a recording, the picker window becomes fully transparent, ignores the mouse and is content-protected, but it stays shown. A side effect is that Capto's own windows record as black, so they're left out of the source list.
+
+## Storage providers
+
+`createStorageProvider(settings, credentials)` returns an object with `upload`, `putText`, `createSignedUrl`, `delete`, `location` and `maxExpirySec`.
+
+| Provider | Upload | Signing | Max expiry |
+| --- | --- | --- | --- |
+| S3 / S3-compatible | `@aws-sdk/lib-storage` multipart, 8 MiB parts | `@aws-sdk/s3-request-presigner` (SigV4) | 7 days |
+| Azure Blob | `BlockBlobClient.uploadFile` with progress | Read-only blob SAS | 30 days |
+| Google Cloud Storage | Streamed, resumable above 5 MB | V4 signed URL | 7 days |
+
+Objects go to `{folder}/{yyyy}/{mm}/{recordingId}/{file}`, next to a `poster.jpg`. `describeStorageError` strips URLs and tokens from error messages before they reach the UI.
+
+## The share-link contract
+
+`src/shared/shareLink.ts` defines the payload `{ v, u, p?, c?, t?, e?, d? }`, serialized as base64url JSON in the fragment of `<viewer>/v#…`. `website/lib/shareLink.ts` is a verbatim copy, so change the two together. Details are in [How sharing works](/docs/sharing).
+
+## Files on disk
+
+| What | Where |
+| --- | --- |
+| Recordings | `~/Movies/Capto/*.mp4` (configurable) |
+| Metadata | `~/Movies/Capto/metadata/<id>.json` |
+| Interrupted recordings | `~/Movies/Capto/Recoveries/` |
+| Settings | `~/Library/Application Support/Capto/settings.json` |
+| Encrypted credentials | `~/Library/Application Support/Capto/credentials.bin` |
+
+## Tests
+
+- `src/shared/*.test.ts`: unit tests for the pure helpers (Vitest).
+- `src/main/storage/providers.integration.test.ts`: upload, sign, fetch and delete against S3Mock, Azurite and fake-gcs-server. It runs only with `CAPTO_STORAGE_IT=1` (`yarn test:storage`).
+- CI (`.github/workflows/ci.yml`) runs typecheck, lint, the unit tests, the website build and the emulator tests.

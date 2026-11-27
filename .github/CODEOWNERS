@@ -1,0 +1,12 @@
+# Every pull request needs a review from a code owner before it can merge
+# (enable "Require review from Code Owners" in the main branch ruleset).
+# Replace YOUR_GITHUB_USERNAME with your GitHub username, or an org team
+# such as @ljappsolutions/maintainers.
+
+*                     @YOUR_GITHUB_USERNAME
+
+# Sensitive areas: workflows, credentials and storage code.
+/.github/             @YOUR_GITHUB_USERNAME
+/src/main/credentials.ts @YOUR_GITHUB_USERNAME
+/src/main/storage/    @YOUR_GITHUB_USERNAME
+/website/sst.config.ts @YOUR_GITHUB_USERNAME

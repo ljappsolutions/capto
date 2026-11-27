@@ -6,7 +6,9 @@ describe('parseSettings', () => {
     const settings = parseSettings(null)
     expect(settings.launchAtLogin).toBe(true)
     expect(settings.globalShortcut).toBe('CommandOrControl+Shift+R')
-    expect(settings.cameraPosition).toBe('bottom-right')
+    expect(settings.cameraOverlay.shape).toBe('circle')
+    expect(settings.maxRecordingMinutes).toBe(0)
+    expect(settings.sharing.provider).toBeNull()
   })
 
   it('merges valid partial values', () => {
@@ -20,7 +22,19 @@ describe('parseSettings', () => {
     expect(settings.launchAtLogin).toBe(false)
     expect(settings.videoQuality).toBe('1440p')
     expect(settings.micVolume).toBe(0.5)
-    expect(settings.cameraPosition).toBe('top-left')
+    expect(settings.cameraOverlay.x).toBeLessThan(0.5)
+    expect(settings.cameraOverlay.y).toBeLessThan(0.5)
+  })
+
+  it('clamps the recording limit', () => {
+    expect(parseSettings({ maxRecordingMinutes: -5 }).maxRecordingMinutes).toBe(0)
+    expect(parseSettings({ maxRecordingMinutes: 100000 }).maxRecordingMinutes).toBe(480)
+  })
+
+  it('does not share default objects between parses', () => {
+    const a = parseSettings(null)
+    a.sharing.prefix = 'mutated'
+    expect(parseSettings(null).sharing.prefix).toBe('capto')
   })
 
   it('clamps volumes', () => {

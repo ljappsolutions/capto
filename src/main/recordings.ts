@@ -107,6 +107,22 @@ async function loadMetadata(id: string): Promise<RecordingMetadata | null> {
   }
 }
 
+export async function getRecordingMetadata(id: string): Promise<RecordingMetadata | null> {
+  return loadMetadata(id)
+}
+
+/** Read-modify-write a recording's metadata file. */
+export async function updateRecordingMetadata(
+  id: string,
+  update: (meta: RecordingMetadata) => RecordingMetadata
+): Promise<RecordingMetadata> {
+  const meta = await loadMetadata(id)
+  if (!meta) throw new Error('Recording not found')
+  const next = update(meta)
+  writeMeta(next)
+  return next
+}
+
 export async function createRecordingFile(
   payload: CreateRecordingPayload
 ): Promise<{ path: string }> {
